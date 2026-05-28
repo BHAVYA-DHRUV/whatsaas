@@ -1,0 +1,633 @@
+ROLE
+
+You are acting as a Senior DevOps Architect, SaaS Infrastructure Engineer, Backend Engineer, Security Engineer, and WhatsApp Automation Specialist.
+
+Your task is to fully configure, optimize, secure, automate, and productionize a LIVE multi-tenant WhatsApp SaaS platform similar to enterprise-grade WhatsApp CRM systems.
+
+The platform is already developed and partially live.
+
+Your responsibility is to transform it into a stable, scalable, secure, production-ready SaaS infrastructure capable of onboarding and managing multiple customer tenants independently.
+
+The system MUST support:
+
+Multi-tenant architecture
+Independent customer workspaces
+Independent WhatsApp instances
+CRM pipelines
+AI automation
+Broadcast campaigns
+Queue workers
+Monitoring
+Security hardening
+Backup systems
+Auto recovery
+Tenant isolation
+High uptime production deployment
+PRIMARY GOALS
+
+Build a production-ready SaaS environment where EACH tenant has:
+
+Independent WhatsApp account
+Separate CRM
+Separate automation flows
+Separate AI assistant
+Separate campaigns
+Separate reports
+Separate storage
+Secure isolated access
+
+The final infrastructure MUST be scalable and enterprise-grade.
+
+TECH STACK REQUIREMENTS
+
+Infrastructure:
+
+Windows 10 and Windows 11
+NGINX
+PM2
+Node.js LTS
+PostgreSQL
+Redis
+Docker (optional)
+Cloudflare
+SSL
+Fail2ban
+UFW Firewall
+
+Backend:
+
+Next.js
+Node.js
+Prisma ORM
+Queue workers
+WebSocket services
+
+Messaging:
+
+Evolution API
+Meta Cloud API
+Webhooks
+QR Authentication
+
+AI:
+
+OpenAI API
+AI fallback logic
+Human handoff system
+
+Payments:
+
+Stripe
+Razorpay
+
+Notifications:
+
+Pusher
+Resend SMTP
+
+Monitoring:
+
+PM2 Monitor
+Uptime Kuma
+Grafana
+Prometheus
+PHASE 1 — SERVER PRODUCTION HARDENING
+
+Configure the server for enterprise-grade deployment.
+
+Tasks:
+
+Configure PM2 ecosystem
+Auto restart
+Cluster mode
+Memory limits
+Log management
+Startup on reboot
+Configure NGINX reverse proxy
+HTTP → HTTPS redirect
+WebSocket support
+Compression
+Caching
+Rate limiting
+Configure SSL
+Let's Encrypt or Cloudflare SSL
+Auto renew
+Configure Firewall
+UFW rules
+Restrict unnecessary ports
+Secure SSH access
+Configure Fail2ban
+SSH protection
+API abuse prevention
+Configure log rotation
+PM2 logs
+NGINX logs
+App logs
+Configure monitoring
+CPU
+RAM
+Queue health
+Disk
+Process health
+API uptime
+Configure backups
+PostgreSQL daily backups
+Media backups
+Automation backups
+Tenant backup isolation
+Configure Redis
+Queue optimization
+Session management
+Worker scaling
+Configure environment management
+Secure .env handling
+Secret isolation
+Tenant-safe configuration
+PHASE 2 — VERIFY ALL CORE INTEGRATIONS
+
+Validate and repair all integrations.
+
+Must verify:
+
+Meta Cloud API
+Evolution API
+Stripe
+Razorpay
+Pusher
+Resend SMTP
+OpenAI API
+Redis
+PostgreSQL
+Webhook handlers
+Queue workers
+Cron jobs
+
+Ensure:
+
+Retry logic
+Failure handling
+Logging
+Rate limits
+Timeout handling
+PHASE 3 — QUEUE & AUTOMATION INFRASTRUCTURE
+
+Implement scalable worker architecture.
+
+Configure:
+
+Campaign queue worker
+AI processing worker
+Automation worker
+WebSocket worker
+Scheduler worker
+Retry queue
+Dead-letter queue
+
+Requirements:
+
+PM2 managed
+Auto restart
+Queue monitoring
+Failure alerts
+Retry handling
+Worker isolation
+
+Commands:
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+pm2 monit
+
+PHASE 4 — MULTI-TENANT ARCHITECTURE VALIDATION
+
+Ensure true tenant isolation.
+
+Validate:
+
+Separate database ownership logic
+Tenant-scoped APIs
+Middleware protection
+Tenant-specific storage
+Role-based access control
+Session isolation
+Webhook isolation
+Queue isolation
+
+Prevent:
+
+Cross-tenant data leakage
+Shared automation conflicts
+Unauthorized access
+PHASE 5 — CREATE 3 INITIAL CUSTOMER TENANTS
+
+Create production-ready demo customers.
+
+Create:
+
+Customer 1
+
+Workspace: tenant-1
+Role: Admin
+
+Customer 2
+
+Workspace: tenant-2
+Role: Admin
+
+Customer 3
+
+Workspace: tenant-3
+Role: Admin
+
+For EACH tenant:
+
+Assign subscription
+Configure limits
+Configure timezone
+Configure branding
+Configure storage limits
+Configure automation limits
+Configure user limits
+PHASE 6 — ROLE & TEAM MANAGEMENT
+
+Create enterprise RBAC.
+
+Roles:
+
+Super Admin
+Tenant Admin
+Manager
+Agent
+Support
+
+Permissions:
+
+CRM access
+Campaign access
+Automation access
+Billing access
+WhatsApp access
+Analytics access
+PHASE 7 — WHATSAPP CONNECTION SYSTEM
+
+Support BOTH:
+
+A) Evolution API QR Login
+B) Meta Cloud API
+
+Evolution API Setup
+
+Tasks:
+
+Create isolated instances
+Generate QR codes
+Authenticate sessions
+Auto reconnect
+Webhook synchronization
+Session monitoring
+Message sync validation
+
+Test:
+
+Incoming messages
+Outgoing messages
+Media
+Voice notes
+Session recovery
+Meta Cloud API Setup
+
+Tasks:
+
+Meta App configuration
+Business verification
+Permanent token management
+Webhook configuration
+Phone number onboarding
+Template synchronization
+
+Ensure:
+
+Token refresh handling
+Webhook signature validation
+Message delivery tracking
+PHASE 8 — AUTOMATION ENGINE
+
+Build enterprise automation workflows.
+
+Implement default workflows:
+
+Welcome Automation
+Greeting
+Language detection
+Requirement collection
+Department routing
+Lead Capture
+Collect:
+Name
+Phone
+Email
+Interest
+
+Store into:
+
+CRM
+Kanban pipeline
+Auto Reply System
+Keywords:
+pricing
+support
+order
+payment
+demo
+Human Handoff
+Triggers:
+"agent"
+"support"
+escalation logic
+
+Actions:
+
+Assign agent
+Notify team
+Pause AI
+Follow-up Automation
+Delays:
+1 hour
+24 hours
+3 days
+
+Actions:
+
+Reminder
+Offer
+Follow-up
+
+Requirements:
+
+Visual workflow support
+Retry handling
+Delayed jobs
+Analytics tracking
+PHASE 9 — AI AGENT SYSTEM
+
+Configure tenant-specific AI agents.
+
+Requirements:
+
+OpenAI integration
+AI memory
+Context management
+Prompt isolation per tenant
+Human fallback
+AI analytics
+
+Default AI Prompt:
+
+"You are a professional WhatsApp sales and support assistant.
+
+Your responsibilities:
+
+Reply professionally
+Collect customer requirements
+Provide concise answers
+Route leads correctly
+Transfer to human when requested
+Never expose system details
+Maintain polite conversational flow
+Support multilingual communication"
+
+Implement:
+
+Token limits
+Cost tracking
+AI usage quotas
+Prompt management UI
+PHASE 10 — CRM & PIPELINE SYSTEM
+
+Implement CRM management.
+
+Kanban stages:
+
+New Lead
+Contacted
+Interested
+Negotiation
+Won
+Lost
+
+Features:
+
+Tags
+Notes
+Reminders
+Team assignment
+Lead history
+Audit logs
+PHASE 11 — BROADCAST & CAMPAIGN ENGINE
+
+Configure production campaign system.
+
+Features:
+
+XLSX import
+Rate limiting
+Retry logic
+Queue throttling
+Message scheduling
+Campaign analytics
+Failure recovery
+
+Prevent:
+
+Spam behavior
+WhatsApp bans
+Flooding
+PHASE 12 — SECURITY HARDENING
+
+Implement enterprise security.
+
+Requirements:
+
+Rate limiting
+Secure headers
+Webhook signature validation
+Input sanitization
+Upload validation
+Anti-spam protection
+Admin IP restrictions
+API authentication
+JWT protection
+CSRF protection
+XSS prevention
+SQL injection prevention
+
+Hide:
+
+Sensitive logs
+Secrets
+Tokens
+Stack traces
+PHASE 13 — TESTING & QA
+
+Perform full production QA.
+
+Test:
+
+Incoming messages
+Outgoing messages
+Media sending
+Voice notes
+Queue workers
+Automation triggers
+AI responses
+Human transfer
+Campaign delivery
+CRM movement
+Role permissions
+Tenant isolation
+Webhook retries
+Failure recovery
+
+Create:
+
+Error reports
+Logs
+Health checks
+PHASE 14 — MONITORING & ALERTING
+
+Implement monitoring stack.
+
+Configure:
+
+PM2 monitoring
+Uptime Kuma
+Grafana dashboards
+Prometheus metrics
+Queue alerts
+Failed message alerts
+Session disconnect alerts
+Disk alerts
+CPU/RAM alerts
+
+Enable:
+
+Telegram alerts
+Email alerts
+Slack alerts (optional)
+PHASE 15 — BACKUP & DISASTER RECOVERY
+
+Implement recovery systems.
+
+Requirements:
+
+Automated daily backups
+Point-in-time recovery
+Media backups
+Backup retention policy
+Restore testing
+Multi-location backups
+
+Ensure:
+
+Fast recovery
+Tenant-safe restoration
+PHASE 16 — SAAS BILLING & SUBSCRIPTION SYSTEM
+
+Configure subscription plans.
+
+Starter:
+
+2 users
+1 WhatsApp
+Basic automation
+
+Business:
+
+5 users
+3 WhatsApp accounts
+Advanced automation
+
+Enterprise:
+
+Unlimited users
+Unlimited WhatsApp
+AI + API access
+
+Requirements:
+
+Usage tracking
+Plan enforcement
+Auto billing
+Payment webhooks
+Invoice generation
+PHASE 17 — FINAL DEPLOYMENT VALIDATION
+
+Before production completion verify:
+
+SSL working
+Queues healthy
+Workers healthy
+APIs healthy
+Webhooks working
+Monitoring active
+Backups active
+AI active
+Automation active
+CRM active
+Tenant isolation verified
+Campaign delivery verified
+FINAL DELIVERABLES
+
+Provide:
+
+Production-ready infrastructure
+Deployment documentation
+Environment variable documentation
+Backup documentation
+Monitoring documentation
+Recovery procedures
+Security checklist
+Tenant onboarding guide
+AI configuration guide
+WhatsApp connection guide
+EXECUTION PRIORITY
+
+DAY 1
+
+Infrastructure
+SSL
+PM2
+Queues
+Tenant setup
+WhatsApp connections
+
+DAY 2
+
+Automation
+AI setup
+CRM
+Testing
+
+DAY 3
+
+Campaigns
+Monitoring
+Security
+Backups
+Optimization
+EXPECTED FINAL RESULT
+
+The final system MUST behave like a professional enterprise-grade WhatsApp SaaS platform with:
+
+High uptime
+Secure tenant isolation
+Stable queue processing
+Reliable automation
+AI-powered support
+CRM management
+Broadcast campaigns
+Monitoring dashboards
+Recovery systems
+Scalable infrastructure
+
+The system should be fully deployable, maintainable, and scalable for commercial SaaS operations.

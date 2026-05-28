@@ -1,0 +1,792 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL")
+}
+
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String?   @db.VarChar(100)
+  email           String    @unique @db.VarChar(255)
+  passwordHash    String    @map("password_hash")
+  role            String    @default("member") @db.VarChar(20)
+  enableSignature Boolean   @default(false) @map("enable_signature")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  teamMembers       TeamMember[]
+  invitationsSent   Invitation[]        @relation("InvitedByUser")
+  contactsAssigned  Contact[]
+  departmentMembers DepartmentMember[]
+  pushTokens        PushToken[]
+  passwordResetTokens PasswordResetToken[]
+  callLogs          CallLog[]
+
+  @@map("users")
+}
+
+model Plan {
+  id                    Int      @id @default(autoincrement())
+  name                  String   @db.VarChar(100)
+  description           String?
+  gatewayId             Int?     @map("gateway_id")
+  gatewayProductId      String?  @map("gateway_product_id")
+  gatewayPriceId        String?  @map("gateway_price_id")
+  stripeProductId       String   @default("") @map("stripe_product_id")
+  stripePriceId         String   @default("") @map("stripe_price_id")
+  amount                Int      @default(0)
+  currency              String   @default("usd") @db.VarChar(3)
+  interval              String   @default("month") @db.VarChar(20)
+  trialDays             Int      @default(0) @map("trial_days")
+  maxUsers              Int      @default(1) @map("max_users")
+  maxContacts           Int      @default(1000) @map("max_contacts")
+  maxInstances          Int      @default(1) @map("max_instances")
+  isAiEnabled           Boolean  @default(false) @map("is_ai_enabled")
+  isFlowBuilderEnabled  Boolean  @default(false) @map("is_flow_builder_enabled")
+  isCampaignsEnabled    Boolean  @default(false) @map("is_campaigns_enabled")
+  isTemplatesEnabled    Boolean  @default(false) @map("is_templates_enabled")
+  isVoiceCallsEnabled   Boolean  @default(false) @map("is_voice_calls_enabled")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @default(now()) @map("updated_at")
+
+  teams Team[]
+
+  @@map("plans")
+}
+
+model PaymentGateway {
+  id            Int      @id @default(autoincrement())
+  gateway       String   @db.VarChar(30)
+  displayName   String   @map("display_name") @db.VarChar(100)
+  publicKey     String   @map("public_key")
+  secretKey     String   @map("secret_key")
+  webhookSecret String?  @map("webhook_secret")
+  isActive      Boolean  @default(false) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @map("updated_at")
+
+  twilioConfigs TwilioConfig[]
+
+  @@map("payment_gateways")
+}
+
+model Team {
+  id                     Int       @id @default(autoincrement())
+  name                   String    @db.VarChar(100)
+  planId                 Int?      @map("plan_id")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @default(now()) @map("updated_at")
+  stripeCustomerId       String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map("stripe_subscription_id")
+  stripeProductId        String?   @map("stripe_product_id")
+  gatewayType            String?   @map("gateway_type") @db.VarChar(30)
+  gatewayCustomerId      String?   @map("gateway_customer_id")
+  gatewaySubscriptionId  String?   @map("gateway_subscription_id")
+  planName               String?   @map("plan_name") @db.VarChar(50)
+  subscriptionStatus     String?   @map("subscription_status") @db.VarChar(20)
+  isCanceled             Boolean?  @default(false) @map("is_canceled")
+  trialEndsAt            DateTime? @map("trial_ends_at")
+  onboardingCompletedAt  DateTime? @map("onboarding_completed_at")
+
+  plan                   Plan?     @relation(fields: [planId], references: [id])
+  teamMembers            TeamMember[]
+  activityLogs           ActivityLog[]
+  invitations            Invitation[]
+  evolutionInstances     EvolutionInstance[]
+  chats                  Chats[]
+  contacts               Contact[]
+  tags                   Tag[]
+  funnelStages           FunnelStage[]
+  quickReplies           QuickReply[]
+  wabaTemplates          WabaTemplate[]
+  campaigns              Campaign[]
+  automations            Automation[]
+  automationSessions     AutomationSession[]
+  aiConfigs              AiConfig[]
+  aiSessions             AiSession[]
+  aiTools                AiTool[]
+  apiKeys                ApiKey[]
+  customFields           CustomField[]
+  departments            Department[]
+  phoneNumbers           TeamPhoneNumber[]
+  callCredits            CallCredits?
+  callLogs               CallLog[]
+  callCreditTransactions CallCreditTransaction[]
+  offlinePaymentRequests OfflinePaymentRequest[]
+  executionLogs          ExecutionLog[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  teamId      Int      @map("team_id")
+  role        String   @db.VarChar(50)
+  permissions Json?
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_members")
+}
+
+model ActivityLog {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  userId    Int?     @map("user_id")
+  action    String
+  timestamp DateTime @default(now())
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model Invitation {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  email     String   @db.VarChar(255)
+  role      String   @db.VarChar(50)
+  invitedBy Int      @map("invited_by")
+  invitedAt DateTime @default(now()) @map("invited_at")
+  status    String   @default("pending") @db.VarChar(20)
+
+  team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  inviter   User @relation("InvitedByUser", fields: [invitedBy], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+model EvolutionInstance {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int      @map("team_id")
+  instanceName        String   @map("instance_name")
+  displayName         String?  @map("display_name")
+  instanceNumber      String?  @map("instance_number")
+  evolutionInstanceId String?  @unique @map("evolution_instance_id")
+  metaToken           String?  @map("meta_token")
+  accessToken         String?  @map("access_token")
+  integration         String   @default("WHATSAPP-BAILEYS") @db.VarChar(50)
+  metaBusinessId      String?  @map("meta_business_id")
+  metaPhoneNumberId   String?  @map("meta_phone_number_id")
+  metaWabaId          String?  @map("meta_waba_id")
+  metaAppId           String?  @map("meta_app_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chats         Chats[]
+  wabaTemplates WabaTemplate[]
+  campaigns     Campaign[]
+
+  @@unique([teamId, instanceName], name: "teamInstanceNameUnique")
+  @@unique([teamId, evolutionInstanceId], name: "teamInstanceIdUnique")
+  @@index([teamId], map: "instance_team_id_idx")
+  @@map("evolution_instances")
+}
+
+model Chats {
+  id                      Int       @id @default(autoincrement())
+  teamId                  Int       @map("team_id")
+  instanceId              Int?      @map("instance_id")
+  remoteJid               String    @map("remote_jid")
+  name                    String?
+  pushName                String?   @map("push_name")
+  profilePicUrl           String?   @map("profile_pic_url")
+  lastMessageText         String?   @map("last_message_text")
+  lastMessageTimestamp    DateTime? @map("last_message_timestamp")
+  lastCustomerInteraction DateTime? @map("last_customer_interaction")
+  unreadCount             Int?      @default(0) @map("unread_count")
+  lastMessageStatus       String?   @map("last_message_status") @db.VarChar(20)
+  lastMessageFromMe       Boolean?  @map("last_message_from_me")
+
+  team               Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  instance           EvolutionInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  contact            Contact?
+  messages           Message[]
+  messageReactions   MessageReaction[]
+  automationSessions AutomationSession[]
+  aiSessions         AiSession[]
+  executionLogs      ExecutionLog[]
+
+  @@unique([teamId, remoteJid, instanceId], name: "teamChatInstanceUnique")
+  @@map("chats")
+}
+
+model Message {
+  id                String    @id
+  chatId            Int       @map("chat_id")
+  fromMe            Boolean   @map("from_me")
+  messageType       String?   @map("message_type")
+  text              String?
+  mediaUrl          String?   @map("media_url")
+  mediaMimetype     String?   @map("media_mimetype")
+  mediaCaption      String?   @map("media_caption")
+  mediaFileLength   String?   @map("media_file_length")
+  mediaSeconds      Int?      @map("media_seconds")
+  mediaIsPtt        Boolean?  @map("media_is_ptt")
+  contactName       String?   @map("contact_name")
+  contactVcard      String?   @map("contact_vcard")
+  locationLatitude  Decimal?  @map("location_latitude") @db.Decimal(10, 7)
+  locationLongitude Decimal?  @map("location_longitude") @db.Decimal(10, 7)
+  locationName      String?   @map("location_name")
+  locationAddress   String?   @map("location_address")
+  status            String?   @default("sent") @db.VarChar(20)
+  isAi              Boolean?  @default(false) @map("is_ai")
+  isAutomation      Boolean?  @default(false) @map("is_automation")
+  quotedMessageId   String?   @map("quoted_message_id") @db.VarChar(255)
+  quotedMessageText String?   @map("quoted_message_text")
+  isInternal        Boolean?  @default(false) @map("is_internal")
+  participant       String?
+  participantName   String?   @map("participant_name")
+  errorMessage      String?   @map("error_message")
+  timestamp         DateTime  @map("timestamp")
+
+  chat             Chats             @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  messageReactions MessageReaction[]
+
+  @@map("messages")
+}
+
+model MessageReaction {
+  id              Int      @id @default(autoincrement())
+  messageId       String   @map("message_id")
+  chatId          Int      @map("chat_id")
+  emoji           String
+  fromMe          Boolean  @default(false) @map("from_me")
+  remoteJid       String?  @map("remote_jid")
+  participantName String?  @map("participant_name")
+  timestamp       DateTime @default(now()) @map("timestamp")
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  chat    Chats   @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, remoteJid, fromMe], name: "uniqueReaction")
+  @@index([messageId], map: "reaction_message_id_idx")
+  @@map("message_reactions")
+}
+
+model FunnelStage {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  name      String   @db.VarChar(100)
+  emoji     String?  @default("📁") @db.VarChar(10)
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team     Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contacts Contact[]
+
+  @@map("funnel_stages")
+}
+
+model Tag {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  name      String   @db.VarChar(100)
+  color     String?  @default("gray") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team        Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  contactTags ContactTag[]
+
+  @@unique([teamId, name], name: "teamNameUnique")
+  @@map("tags")
+}
+
+model Department {
+  id          Int      @id @default(autoincrement())
+  teamId      Int      @map("team_id")
+  name        String   @db.VarChar(100)
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  team              Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  departmentMembers DepartmentMember[]
+  contacts          Contact[]
+
+  @@unique([teamId, name], name: "teamDepartmentNameUnique")
+  @@map("departments")
+}
+
+model DepartmentMember {
+  id           Int      @id @default(autoincrement())
+  departmentId Int      @map("department_id")
+  userId       Int      @map("user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, userId], name: "deptUserUnique")
+  @@map("department_members")
+}
+
+model Contact {
+  id                   Int      @id @default(autoincrement())
+  teamId               Int      @map("team_id")
+  chatId               Int      @unique @map("chat_id")
+  name                 String
+  assignedUserId       Int?     @map("assigned_user_id")
+  assignedDepartmentId Int?     @map("assigned_department_id")
+  funnelStageId        Int?     @map("funnel_stage_id")
+  notes                String?
+  customData           Json?    @default("{}") @map("custom_data")
+  showTimeInStage      Boolean? @default(false) @map("show_time_in_stage")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @default(now()) @map("updated_at")
+
+  team               Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chat               Chats              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  assignedUser       User?              @relation(fields: [assignedUserId], references: [id], onDelete: SetNull)
+  assignedDepartment Department?        @relation(fields: [assignedDepartmentId], references: [id], onDelete: SetNull)
+  funnelStage        FunnelStage?       @relation(fields: [funnelStageId], references: [id], onDelete: SetNull)
+  contactTags        ContactTag[]
+  automationSessions AutomationSession[]
+
+  @@index([teamId], map: "contact_team_id_idx")
+  @@index([chatId], map: "contact_chat_id_idx")
+  @@map("contacts")
+}
+
+model ContactTag {
+  id        Int      @id @default(autoincrement())
+  contactId Int      @map("contact_id")
+  tagId     Int      @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId], name: "contactTagUnique")
+  @@map("contact_tags")
+}
+
+model QuickReply {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  shortcut  String   @db.VarChar(50)
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, shortcut], name: "teamShortcutUnique")
+  @@map("quick_replies")
+}
+
+model WabaTemplate {
+  id         Int      @id @default(autoincrement())
+  teamId     Int      @map("team_id")
+  instanceId Int      @map("instance_id")
+  metaId     String?  @map("meta_id")
+  name       String   @db.VarChar(255)
+  language   String   @db.VarChar(10)
+  category   String   @db.VarChar(50)
+  status     String   @default("PENDING") @db.VarChar(50)
+  components Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  team      Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  instance  EvolutionInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@unique([instanceId, name, language], name: "uniqueNameLang")
+  @@map("waba_templates")
+}
+
+model Campaign {
+  id             Int       @id @default(autoincrement())
+  teamId         Int       @map("team_id")
+  instanceId     Int       @map("instance_id")
+  name           String    @db.VarChar(255)
+  status         String    @default("DRAFT") @db.VarChar(50)
+  scheduledAt    DateTime? @map("scheduled_at")
+  templateId     Int?      @map("template_id")
+  totalLeads     Int?      @default(0) @map("total_leads")
+  sentCount      Int?      @default(0) @map("sent_count")
+  failedCount    Int?      @default(0) @map("failed_count")
+  createContacts Boolean?  @default(false) @map("create_contacts")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  team          Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  instance      EvolutionInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  template      WabaTemplate?     @relation(fields: [templateId], references: [id])
+  campaignLeads CampaignLead[]
+
+  @@map("campaigns")
+}
+
+model CampaignLead {
+  id         Int     @id @default(autoincrement())
+  campaignId Int     @map("campaign_id")
+  phone      String  @db.VarChar(50)
+  variables  Json?
+  status     String? @default("PENDING") @db.VarChar(20)
+  error      String?
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("campaign_leads")
+}
+
+model Automation {
+  id             Int      @id @default(autoincrement())
+  teamId         Int      @map("team_id")
+  name           String   @db.VarChar(255)
+  instanceId     Int?     @map("instance_id")
+  triggerKeyword String?  @map("trigger_keyword") @db.VarChar(100)
+  nodes          Json     @default("[]")
+  edges          Json     @default("[]")
+  isActive       Boolean  @default(false) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  team               Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  automationSessions AutomationSession[]
+
+  @@map("automations")
+}
+
+model AutomationSession {
+  id            Int      @id @default(autoincrement())
+  teamId        Int      @map("team_id")
+  automationId  Int      @map("automation_id")
+  chatId        Int      @map("chat_id")
+  contactId     Int?     @map("contact_id")
+  currentNodeId String?  @map("current_node_id")
+  variables     Json?    @default("{}")
+  status        String   @default("active") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @map("updated_at")
+
+  team       Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  chat       Chats      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@map("automation_sessions")
+}
+
+model AiConfig {
+  id              Int      @id @default(autoincrement())
+  teamId          Int      @unique @map("team_id")
+  isActive        Boolean  @default(false) @map("is_active")
+  provider        String   @db.VarChar(50)
+  model           String   @db.VarChar(100)
+  apiKey          String   @map("api_key")
+  systemPrompt    String?  @map("system_prompt")
+  attachments     Json?    @default("[]")
+  temperature     Decimal? @default(0.7) @db.Decimal(2, 1)
+  maxOutputTokens Int?     @default(1000) @map("max_output_tokens")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @default(now()) @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("ai_configs")
+}
+
+model AiSession {
+  id        Int      @id @default(autoincrement())
+  teamId    Int?     @map("team_id")
+  chatId    Int      @map("chat_id")
+  status    String?  @default("active") @db.VarChar(20)
+  history   Json?    @default("[]")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chat Chats @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@map("ai_sessions")
+}
+
+model AiTool {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int      @map("team_id")
+  name                String   @db.VarChar(50)
+  description         String
+  type                String   @default("media") @db.VarChar(30)
+  mediaUrl            String?  @map("media_url")
+  mediaType           String?  @map("media_type") @db.VarChar(20)
+  caption             String?
+  confirmationMessage String?  @map("confirmation_message")
+  actionData          Json?    @map("action_data")
+  isActive            Boolean  @default(true) @map("is_active")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @default(now()) @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, name], name: "teamToolNameUnique")
+  @@map("ai_tools")
+}
+
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  teamId     Int       @map("team_id")
+  name       String    @db.VarChar(100)
+  key        String    @unique @db.VarChar(255)
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId], map: "api_key_team_id_idx")
+  @@index([key], map: "api_key_value_idx")
+  @@map("api_keys")
+}
+
+model CustomField {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  name      String   @db.VarChar(100)
+  key       String   @db.VarChar(100)
+  type      String   @default("text") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, key], name: "teamKeyUnique")
+  @@map("custom_fields")
+}
+
+model WebhookEvent {
+  id           Int       @id @default(autoincrement())
+  teamId       Int       @map("team_id")
+  instanceName String    @map("instance_name") @db.VarChar(255)
+  event        String    @db.VarChar(100)
+  messageId    String?   @map("message_id")
+  remoteJid    String?   @map("remote_jid")
+  status       String    @default("received") @db.VarChar(20)
+  error        String?
+  processedAt  DateTime? @map("processed_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId], map: "webhook_events_team_id_idx")
+  @@index([status], map: "webhook_events_status_idx")
+  @@index([createdAt], map: "webhook_events_created_at_idx")
+  @@map("webhook_events")
+}
+
+model ChannelConfig {
+  id               Int      @id @default(autoincrement())
+  channel          String   @unique @db.VarChar(30)
+  isActive         Boolean  @default(false) @map("is_active")
+  apiUrl           String?  @map("api_url")
+  apiKey           String?  @map("api_key")
+  webhookUrl       String?  @map("webhook_url")
+  webhookToken     String?  @map("webhook_token")
+  metaAppId        String?  @map("meta_app_id")
+  metaAppSecret    String?  @map("meta_app_secret")
+  metaConfigId     String?  @map("meta_config_id")
+  metaWebhookToken String?  @map("meta_webhook_token")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @map("updated_at")
+
+  @@map("channel_configs")
+}
+
+model OfflinePaymentRequest {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @map("team_id")
+  planId    Int      @map("plan_id")
+  amount    Int
+  currency  String   @default("usd") @db.VarChar(3)
+  status    String   @default("pending") @db.VarChar(20)
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("offline_payment_requests")
+}
+
+model ExecutionLog {
+  id                  Int      @id @default(autoincrement())
+  teamId              Int      @map("team_id")
+  chatId              Int      @map("chat_id")
+  messageId           String?  @map("message_id")
+  source              String   @db.VarChar(20)
+  eventType           String   @map("event_type") @db.VarChar(50)
+  automationId        Int?     @map("automation_id")
+  automationSessionId Int?     @map("automation_session_id")
+  nodeId              String?  @map("node_id")
+  nodeType            String?  @map("node_type") @db.VarChar(50)
+  inputData           Json?    @map("input_data")
+  outputData          Json?    @map("output_data")
+  metadata            Json?
+  durationMs          Int?     @map("duration_ms")
+  status              String   @default("success") @db.VarChar(20)
+  errorMessage        String?  @map("error_message")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chat Chats @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt], map: "idx_exec_logs_chat_created")
+  @@index([messageId], map: "idx_exec_logs_message")
+  @@index([teamId, createdAt], map: "idx_exec_logs_team_created")
+  @@map("execution_logs")
+}
+
+model Branding {
+  id         Int      @id @default(autoincrement())
+  name       String   @default("WhatsSaaS") @db.VarChar(100)
+  logoUrl    String?  @map("logo_url")
+  faviconUrl String?  @map("favicon_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
+
+  @@map("branding")
+}
+
+model ChatTheme {
+  id                     Int      @id @default(autoincrement())
+  backgroundType         String   @default("solid") @map("background_type") @db.VarChar(20)
+  backgroundColor        String   @default("#F4F4F5") @map("background_color") @db.VarChar(30)
+  backgroundImageUrl     String?  @map("background_image_url")
+  userBubbleColor        String   @default("#E2EDE4") @map("user_bubble_color") @db.VarChar(30)
+  contactBubbleColor     String   @default("#FFFFFF") @map("contact_bubble_color") @db.VarChar(30)
+  darkBackgroundColor    String   @default("#27272A") @map("dark_background_color") @db.VarChar(30)
+  darkUserBubbleColor    String   @default("#2A352E") @map("dark_user_bubble_color") @db.VarChar(30)
+  darkContactBubbleColor String   @default("#18181B") @map("dark_contact_bubble_color") @db.VarChar(30)
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @default(now()) @map("updated_at")
+
+  @@map("chat_theme")
+}
+
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  token     String
+  deviceId  String?  @map("device_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, token], name: "userPushTokenUnique")
+  @@index([token], map: "push_token_value_idx")
+  @@map("push_tokens")
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  token     String    @unique @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+model TwilioConfig {
+  id                 Int      @id @default(autoincrement())
+  accountSid         String   @map("account_sid")
+  authToken          String   @map("auth_token")
+  apiKeySid          String   @map("api_key_sid")
+  apiKeySecret       String   @map("api_key_secret")
+  twimlAppSid        String?  @map("twiml_app_sid")
+  creditPricePerPack Int      @default(1000) @map("credit_price_per_pack")
+  creditsPerPack     Int      @default(50) @map("credits_per_pack")
+  pricePerNumber     Int      @default(1000) @map("price_per_number")
+  paymentGatewayId   Int?     @map("payment_gateway_id")
+  currency           String?  @default("usd") @db.VarChar(3)
+  isActive           Boolean  @default(false) @map("is_active")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @default(now()) @map("updated_at")
+
+  paymentGateway     PaymentGateway? @relation(fields: [paymentGatewayId], references: [id], onDelete: SetNull)
+
+  @@map("twilio_configs")
+}
+
+model TeamPhoneNumber {
+  id                   Int      @id @default(autoincrement())
+  teamId               Int      @map("team_id")
+  phoneNumber          String   @map("phone_number") @db.VarChar(20)
+  twilioPhoneSid       String?  @map("twilio_phone_sid")
+  friendlyName         String?  @map("friendly_name") @db.VarChar(100)
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("team_phone_numbers")
+}
+
+model CallLog {
+  id            Int       @id @default(autoincrement())
+  teamId        Int       @map("team_id")
+  chatId        Int?      @map("chat_id")
+  userId        Int?      @map("user_id")
+  twilioCallSid String?   @unique @map("twilio_call_sid")
+  direction     String    @db.VarChar(20)
+  fromNumber    String    @map("from_number") @db.VarChar(20)
+  toNumber      String    @map("to_number") @db.VarChar(20)
+  status        String    @default("initiated") @db.VarChar(30)
+  duration      Int?
+  recordingUrl  String?   @map("recording_url")
+  recordingSid  String?   @map("recording_sid")
+  creditsUsed   Int       @default(0) @map("credits_used")
+  startedAt     DateTime? @map("started_at")
+  endedAt       DateTime? @map("ended_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  team    Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chat    Chats?  @relation(fields: [chatId], references: [id], onDelete: SetNull)
+  user    User?  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  transactions CallCreditTransaction[]
+
+  @@index([teamId], map: "call_logs_team_id_idx")
+  @@index([chatId], map: "call_logs_chat_id_idx")
+  @@index([twilioCallSid], map: "call_logs_twilio_call_sid_idx")
+  @@map("call_logs")
+}
+
+model CallCredits {
+  id        Int      @id @default(autoincrement())
+  teamId    Int      @unique @map("team_id")
+  balance   Int      @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("call_credits")
+}
+
+model CallCreditTransaction {
+  id                    Int      @id @default(autoincrement())
+  teamId                Int      @map("team_id")
+  type                  String   @db.VarChar(20)
+  amount                Int
+  description           String?
+  callLogId             Int?     @map("call_log_id")
+  stripePaymentIntentId String?  @map("stripe_payment_intent_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  callLog CallLog? @relation(fields: [callLogId], references: [id], onDelete: SetNull)
+
+  @@index([teamId], map: "call_credit_tx_team_id_idx")
+  @@map("call_credit_transactions")
+}
