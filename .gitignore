@@ -52,3 +52,9 @@ postgres_data/
 /uploads/
 
 /lib/generated/prisma
+
+.next/
+.next-build-validation-final/
+.next-build-validation/
+node_modules/
+
