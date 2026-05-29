@@ -28,7 +28,7 @@ Health: `GET /api/health` → `{ status: "healthy", checks: { database, redis, a
 
 | Area | Files |
 |------|--------|
-| Env / boot | `lib/env.ts`, `instrumentation.ts` |
+| Env / boot | `lib/env.ts`|
 | Redis cache | `lib/cache/redis-cache.ts`, `lib/redis.ts` |
 | Rate limit | `lib/rate-limit.ts`, `lib/api/with-rate-limit.ts` |
 | DB pool + indexes | `lib/db/drizzle.ts`, `lib/db/schema.ts`, `lib/db/migrations/0004_performance_indexes.sql` |

@@ -9,12 +9,13 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const headersList = headers();
+  const headersList = await headers();
 
   const pathname = headersList.get('x-pathname') ?? '';
   const path = pathWithoutLocale(pathname);
 
   const isHomePage = path === '/' || path === '';
+
   const isOnboardingRoute =
     path === '/onboarding' || path.startsWith('/onboarding/');
 
@@ -40,3 +41,7 @@ export default async function DashboardGroupLayout({
 
   return (
     <DashboardShell path={path}>
+      {children}
+    </DashboardShell>
+  );
+}

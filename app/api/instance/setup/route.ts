@@ -74,12 +74,13 @@ export async function POST(request: Request) {
       metaToken,
       metaBusinessId,
       metaPhoneNumberId,
-      rejectCalls,
-      ignoreGroups,
-      alwaysOnline,
-      readMessages,
-      readStatus,
     } = parsed.data;
+
+    const rejectCall = Boolean((parsed.data as any).rejectCall ?? (parsed.data as any).rejectCalls ?? false);
+    const groupsIgnore = Boolean((parsed.data as any).groupsIgnore ?? (parsed.data as any).ignoreGroups ?? true);
+    const alwaysOnline = Boolean((parsed.data as any).alwaysOnline ?? true);
+    const readMessages = Boolean((parsed.data as any).readMessages ?? false);
+    const readStatus = Boolean((parsed.data as any).readStatus ?? false);
 
     const evoConfig = await getEvolutionConfig();
     const EVOLUTION_API_URL = evoConfig.apiUrl;
@@ -152,13 +153,14 @@ export async function POST(request: Request) {
       integration,
       qrcode: integration === 'WHATSAPP-BAILEYS',
       webhook: {
+        enabled: true,
         url: WEBHOOK_URL,
         byEvents: false,
         base64: true,
         events: WEBHOOK_EVENTS,
       },
-      rejectCalls,
-      ignoreGroups,
+      rejectCall,
+      groupsIgnore,
       alwaysOnline,
       readMessages,
       readStatus,

@@ -11,10 +11,21 @@ const DEFAULT_BRANDING = {
   updatedAt: new Date(),
 };
 
+const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Database query timed out after ${ms}ms`)), ms);
+
+    promise
+      .then((value) => resolve(value))
+      .catch((error) => reject(error))
+      .finally(() => clearTimeout(timer));
+  });
+};
+
 const loadBranding = unstable_cache(
   async () => {
     try {
-      const branding = await db.query.branding.findFirst();
+      const branding = await queryWithTimeout(db.query.branding.findFirst(), 2500);
       return branding ?? DEFAULT_BRANDING;
     } catch (error) {
       console.error('Branding Query Error:', error);

@@ -1,7 +1,7 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -16,6 +16,7 @@
     "pm2:stop": "pm2 stop ecosystem.config.js",
     "workers:dev": "npx tsx workers/campaign-processor.ts",
     "workers:all": "npx tsx workers/bullmq/campaign-worker.ts",
+    "socket:dev": "npx tsx server/socket-server.ts",
     "audit:health": "npx tsx scripts/audit-health.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

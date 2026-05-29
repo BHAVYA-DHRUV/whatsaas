@@ -1,5 +1,16 @@
 import { unstable_cache } from 'next/cache';
 import { desc, and, eq, isNull, count } from 'drizzle-orm';
+
+const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Database query timed out after ${ms}ms`)), ms);
+
+    promise
+      .then((value) => resolve(value))
+      .catch((error) => reject(error))
+      .finally(() => clearTimeout(timer));
+  });
+};
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users, plans, contacts, evolutionInstances } from './schema';
 import { cookies, headers } from 'next/headers';
@@ -62,7 +73,7 @@ export async function getUser() {
 const loadPublishedPlans = unstable_cache(
   async () => {
     try {
-      return await db.select().from(plans).orderBy(plans.amount);
+      return await queryWithTimeout(db.select().from(plans).orderBy(plans.amount), 2500);
     } catch (error) {
       console.error('getPublishedPlans failed (run pnpm db:bootstrap):', error);
       return [];

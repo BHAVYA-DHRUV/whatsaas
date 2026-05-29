@@ -212,15 +212,21 @@ function getStatusWeight(status: string | null): number {
 
 export async function POST(request: Request) {
   try {
-    if (!verifyEvolutionWebhook(request)) {
+    if (!(await verifyEvolutionWebhook(request))) {
       return NextResponse.json({ error: 'Invalid webhook credentials' }, { status: 401 });
     }
 
     const limited = await checkRateLimit(`webhook:${getClientIp(request)}`, RATE_LIMITS.webhook);
     if (limited) return limited;
 
-    const body = await request.json();
-    const instanceName = body.instance;
+    let body: any;
+    try {
+      body = await request.clone().json();
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
+    }
+
+    const instanceName = body?.instance;
     
     if (!instanceName) {
       return NextResponse.json({ error: 'Instance name missing' }, { status: 400 });

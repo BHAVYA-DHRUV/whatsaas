@@ -46,12 +46,10 @@ class SocketClient {
     this.socket = io(socketUrl, {
       autoConnect: false,
       transports: ['websocket'],
-      reconnection: true,
-      reconnectionAttempts: 4,
-      reconnectionDelay: 1_000,
-      reconnectionDelayMax: 8_000,
-      randomizationFactor: 0.4,
+      reconnection: false,
       timeout: 5_000,
+      forceNew: true,
+      upgrade: true,
     });
 
     this.socket.on('connect', () => {

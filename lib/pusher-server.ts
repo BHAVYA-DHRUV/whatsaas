@@ -46,12 +46,19 @@ const noopPusher: PusherLike = {
   },
 };
 
+function isPusherConfigured(): boolean {
+  const key = (process.env.NEXT_PUBLIC_PUSHER_KEY || '').trim();
+  const secret = (process.env.PUSHER_SECRET || '').trim();
+  const appId = (process.env.PUSHER_APP_ID || '').trim();
+  const cluster = (process.env.NEXT_PUBLIC_PUSHER_CLUSTER || '').trim();
+
+  return Boolean(appId && secret && key && cluster) &&
+    !/^(demo|local|placeholder|changeme)$/i.test(key) &&
+    !/^(demo|local|placeholder|changeme)$/i.test(secret);
+}
+
 function createPusher(): PusherLike {
-  const hasPusher = Boolean(
-    process.env.PUSHER_APP_ID &&
-    process.env.NEXT_PUBLIC_PUSHER_KEY &&
-    process.env.PUSHER_SECRET
-  );
+  const hasPusher = isPusherConfigured();
 
   if (!hasPusher) {
     return noopPusher;

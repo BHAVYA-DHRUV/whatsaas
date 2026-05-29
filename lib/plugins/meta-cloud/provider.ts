@@ -127,9 +127,10 @@ export class MetaCloudProvider implements WhatsAppProvider {
 
       return this.graph(`${this.phoneNumberId}/messages`, body);
     } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to upload media';
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to upload media',
+        error: /upload/i.test(message) ? 'Failed to upload media' : message,
       };
     }
   }
