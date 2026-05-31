@@ -217,7 +217,8 @@ export default function ChatPage() {
     name: contact?.name || currentChat?.name || currentChat?.pushName || chatNumber || 'Chat',
     profilePicUrl: currentChat?.profilePicUrl || null,
     lastCustomerInteraction: currentChat?.lastCustomerInteraction ? new Date(currentChat.lastCustomerInteraction).toISOString() : null,
-    integration: activeInstance?.integration || 'WHATSAPP-BAILEYS'
+    integration: activeInstance?.integration || 'WHATSAPP-BAILEYS',
+    phone: contact?.phone || (chatNumber && !isGroup ? chatNumber : null),
   };
 
   const isWaba = activeInstance?.integration === 'WHATSAPP-BUSINESS';
@@ -706,8 +707,8 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
-      <div className="flex flex-col flex-1 h-screen">
+    <div className="flex h-full min-h-0 bg-background">
+      <div className="flex flex-col flex-1 min-h-0 min-w-0">
 
         <ChatHeader
           chatDetails={chatDetails}
@@ -718,6 +719,8 @@ export default function ChatPage() {
           isSidebarCollapsed={chatSidebarCollapsed}
           onToggleSidebar={toggleChatSidebar}
           isGroup={isGroup}
+          peerTyping={peerTyping}
+          phone={chatDetails.phone}
         />
 
         {showSyncBanner && (
@@ -762,7 +765,9 @@ export default function ChatPage() {
 
         <footer className="flex flex-col border-t bg-background shrink-0">
           {peerTyping && (
-            <p className="px-4 py-1 text-xs text-muted-foreground animate-pulse">{peerTyping} is typing…</p>
+            <p className="px-4 py-1.5 text-xs text-primary/80 animate-pulse">
+              {peerTyping} is typing…
+            </p>
           )}
           <ChatInput
             isInternalNote={isInternalNote}

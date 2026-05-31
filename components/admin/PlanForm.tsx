@@ -113,16 +113,16 @@ export function PlanForm({
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="maxUsers">Max users</Label>
-            <Input id="maxUsers" name="maxUsers" type="number" min="1" defaultValue={initialData?.maxUsers ?? 1} />
+            <Label htmlFor="maxUsers">Max users (-1 for unlimited)</Label>
+            <Input id="maxUsers" name="maxUsers" type="number" min="-1" defaultValue={initialData?.maxUsers ?? 1} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="maxContacts">Max contacts</Label>
-            <Input id="maxContacts" name="maxContacts" type="number" min="0" defaultValue={initialData?.maxContacts ?? 1000} />
+            <Label htmlFor="maxContacts">Max contacts (-1 for unlimited)</Label>
+            <Input id="maxContacts" name="maxContacts" type="number" min="-1" defaultValue={initialData?.maxContacts ?? 1000} />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="maxInstances">Max WhatsApp</Label>
-            <Input id="maxInstances" name="maxInstances" type="number" min="0" defaultValue={initialData?.maxInstances ?? 1} />
+            <Label htmlFor="maxInstances">Max WhatsApp (-1 for unlimited)</Label>
+            <Input id="maxInstances" name="maxInstances" type="number" min="-1" defaultValue={initialData?.maxInstances ?? 1} />
           </div>
         </CardContent>
       </Card>

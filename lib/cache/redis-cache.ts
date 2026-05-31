@@ -55,6 +55,8 @@ export async function cacheDel(...keys: string[]): Promise<void> {
 
 export async function cacheInvalidateTeam(teamId: number): Promise<void> {
   await cacheDel(
+    CacheKeys.teamChats(teamId, 'inbox'),
+    CacheKeys.teamChats(teamId, 'archived'),
     CacheKeys.teamChats(teamId, 'all'),
     CacheKeys.teamChats(teamId, 'kanban'),
     CacheKeys.dashboardMetrics(teamId),

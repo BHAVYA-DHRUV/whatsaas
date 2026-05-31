@@ -1,0 +1,11 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/webhook/meta-cloud/route.js")
+R.c("server/chunks/node_modules_next_dist_compiled_@opentelemetry_api_index_0uix5xn.js")
+R.c("server/chunks/node_modules_next_0x_x~l6._.js")
+R.c("server/chunks/[root-of-the-server]__0gsqu-h._.js")
+R.c("server/chunks/[root-of-the-server]__0n8dqtr._.js")
+R.c("server/chunks/node_modules_0x4yz9m._.js")
+R.c("server/chunks/node_modules_zod_v4_classic_external_131y~ke.js")
+R.c("server/chunks/node_modules_next_dist_0k~eexk._.js")
+R.c("server/chunks/_next-internal_server_app_api_webhook_meta-cloud_route_actions_0cor4lh.js")
+R.m(737409)
+module.exports=R.m(737409).exports

@@ -44,6 +44,7 @@ export type ChatDetails = {
   profilePicUrl: string | null;
   lastCustomerInteraction: string | null;
   integration: string;
+  phone?: string | null;
 };
 
 export type ContactData = {

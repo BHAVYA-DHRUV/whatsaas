@@ -182,7 +182,10 @@ export const chats = pgTable(
     lastCustomerInteraction: timestamp('last_customer_interaction'),
     unreadCount: integer('unread_count').default(0),
     lastMessageStatus: varchar('last_message_status', { length: 20 }),
-    lastMessageFromMe: boolean('last_message_from_me'), 
+    lastMessageFromMe: boolean('last_message_from_me'),
+    isPinned: boolean('is_pinned').notNull().default(false),
+    isArchived: boolean('is_archived').notNull().default(false),
+    pinnedAt: timestamp('pinned_at'),
   },
   (self) => ({
     teamChatInstanceUnique: unique('team_chat_instance_idx').on(self.teamId, self.remoteJid, self.instanceId),
@@ -319,6 +322,9 @@ export const contacts = pgTable('contacts', {
   notes: text('notes'),
   customData: jsonb('custom_data').$type<Record<string, any>>().default({}),
   showTimeInStage: boolean('show_time_in_stage').default(false),
+  bio: text('bio'),
+  status: text('status'),
+  lastSeen: timestamp('last_seen'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({

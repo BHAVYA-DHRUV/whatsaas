@@ -1,0 +1,3 @@
+{
+  "/api/messages/sendMedia/route": "app/api/messages/sendMedia/route.js"
+}

@@ -36,7 +36,7 @@ type FlowBuilderProps = {
 
 function StartNode({ data }: { data: { label?: string } }) {
   return (
-    <div className="min-w-[140px] rounded-lg border-2 border-green-500 bg-green-50 px-4 py-3 text-sm font-medium text-green-900 dark:bg-green-950 dark:text-green-100">
+    <div className="px-4 py-3 text-sm font-medium text-green-900 border-2 border-green-500 rounded-lg min-w-35 bg-green-50 dark:bg-green-950 dark:text-green-100">
       <Handle type="source" position={Position.Bottom} />
       {data.label || 'Start'}
     </div>
@@ -45,10 +45,10 @@ function StartNode({ data }: { data: { label?: string } }) {
 
 function MessageNode({ data }: { data: { label?: string; text?: string } }) {
   return (
-    <div className="min-w-[180px] rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
+    <div className="px-4 py-3 border rounded-lg shadow-sm min-w-45 border-border bg-card">
       <Handle type="target" position={Position.Top} />
-      <div className="mb-1 flex items-center gap-1 text-xs font-semibold text-primary">
-        <MessageSquare className="h-3 w-3" /> Message
+      <div className="flex items-center gap-1 mb-1 text-xs font-semibold text-primary">
+        <MessageSquare className="w-3 h-3" /> Message
       </div>
       <p className="text-xs text-muted-foreground line-clamp-2">{data.text || data.label || 'Send text'}</p>
       <Handle type="source" position={Position.Bottom} />
@@ -58,10 +58,10 @@ function MessageNode({ data }: { data: { label?: string; text?: string } }) {
 
 function DelayNode({ data }: { data: { label?: string; seconds?: number } }) {
   return (
-    <div className="min-w-[140px] rounded-lg border border-amber-400/60 bg-amber-50 px-4 py-3 dark:bg-amber-950/40">
+    <div className="px-4 py-3 border rounded-lg min-w-35 border-amber-400/60 bg-amber-50 dark:bg-amber-950/40">
       <Handle type="target" position={Position.Top} />
       <div className="flex items-center gap-1 text-xs font-semibold text-amber-800 dark:text-amber-200">
-        <Clock className="h-3 w-3" /> Delay {data.seconds ? `${data.seconds}s` : ''}
+        <Clock className="w-3 h-3" /> Delay {data.seconds ? `${data.seconds}s` : ''}
       </div>
       <Handle type="source" position={Position.Bottom} />
     </div>
@@ -70,10 +70,10 @@ function DelayNode({ data }: { data: { label?: string; seconds?: number } }) {
 
 function ConditionNode({ data }: { data: { label?: string } }) {
   return (
-    <div className="min-w-[140px] rounded-lg border border-blue-400/60 bg-blue-50 px-4 py-3 dark:bg-blue-950/40">
+    <div className="px-4 py-3 border rounded-lg min-w-35 border-blue-400/60 bg-blue-50 dark:bg-blue-950/40">
       <Handle type="target" position={Position.Top} />
       <div className="flex items-center gap-1 text-xs font-semibold text-blue-800 dark:text-blue-200">
-        <GitBranch className="h-3 w-3" /> {data.label || 'Condition'}
+        <GitBranch className="w-3 h-3" /> {data.label || 'Condition'}
       </div>
       <Handle type="source" position={Position.Bottom} id="yes" />
       <Handle type="source" position={Position.Right} id="no" />
@@ -83,10 +83,10 @@ function ConditionNode({ data }: { data: { label?: string } }) {
 
 function AiNode({ data }: { data: { label?: string } }) {
   return (
-    <div className="min-w-[140px] rounded-lg border border-violet-400/60 bg-violet-50 px-4 py-3 dark:bg-violet-950/40">
+    <div className="px-4 py-3 border rounded-lg min-w-35 border-violet-400/60 bg-violet-50 dark:bg-violet-950/40">
       <Handle type="target" position={Position.Top} />
       <div className="flex items-center gap-1 text-xs font-semibold text-violet-800 dark:text-violet-200">
-        <Sparkles className="h-3 w-3" /> {data.label || 'AI reply'}
+        <Sparkles className="w-3 h-3" /> {data.label || 'AI reply'}
       </div>
       <Handle type="source" position={Position.Bottom} />
     </div>
@@ -95,10 +95,10 @@ function AiNode({ data }: { data: { label?: string } }) {
 
 function WebhookNode({ data }: { data: { label?: string; url?: string } }) {
   return (
-    <div className="min-w-[160px] rounded-lg border border-border bg-muted px-4 py-3">
+    <div className="px-4 py-3 border rounded-lg min-w-40 border-border bg-muted">
       <Handle type="target" position={Position.Top} />
       <div className="flex items-center gap-1 text-xs font-semibold">
-        <Webhook className="h-3 w-3" /> Webhook
+        <Webhook className="w-3 h-3" /> Webhook
       </div>
       <p className="mt-1 truncate text-[10px] text-muted-foreground">{data.url || 'POST URL'}</p>
       <Handle type="source" position={Position.Bottom} />
@@ -189,14 +189,14 @@ export default function FlowBuilder({
   };
 
   return (
-    <div className="flex h-[calc(100vh-0px)] flex-col bg-background">
-      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
+    <div className="flex h-[calc(100vh-0)] flex-col bg-background">
+      <header className="flex items-center justify-between px-4 py-3 border-b shrink-0 border-border">
         <div className="flex items-center gap-3">
           <Link href="/automation" className="text-sm text-muted-foreground hover:text-foreground">
             ← Automations
           </Link>
           <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-primary" />
+            <Bot className="w-5 h-5 text-primary" />
             <span className="font-semibold">Flow editor</span>
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">{integration}</span>
           </div>
@@ -209,15 +209,15 @@ export default function FlowBuilder({
             <Switch id="flow-active" checked={active} onCheckedChange={handleToggle} disabled={toggling} />
           </div>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Save flow
           </Button>
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside className="w-52 shrink-0 border-r border-border bg-card/50 p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Add node</p>
+      <div className="flex flex-1 min-h-0">
+        <aside className="p-3 border-r w-52 shrink-0 border-border bg-card/50">
+          <p className="mb-2 text-xs font-semibold tracking-wide uppercase text-muted-foreground">Add node</p>
           <div className="flex flex-col gap-2">
             {[
               { type: 'message', icon: MessageSquare, label: 'Send message' },
@@ -234,7 +234,7 @@ export default function FlowBuilder({
           </div>
         </aside>
 
-        <div className="min-w-0 flex-1">
+        <div className="flex-1 min-w-0">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -249,14 +249,14 @@ export default function FlowBuilder({
             <Background />
             <Controls />
             <MiniMap />
-            <Panel position="top-left" className="rounded-md bg-background/90 px-2 py-1 text-xs text-muted-foreground shadow">
+            <Panel position="top-left" className="px-2 py-1 text-xs rounded-md shadow bg-background/90 text-muted-foreground">
               Drag nodes · Connect handles · Save when done
             </Panel>
           </ReactFlow>
         </div>
 
-        <aside className="w-64 shrink-0 border-l border-border bg-card/50 p-4">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Properties</p>
+        <aside className="w-64 p-4 border-l shrink-0 border-border bg-card/50">
+          <p className="mb-3 text-xs font-semibold tracking-wide uppercase text-muted-foreground">Properties</p>
           {!selectedNode ? (
             <p className="text-sm text-muted-foreground">Select a node to edit</p>
           ) : selectedNode.type === 'message' ? (

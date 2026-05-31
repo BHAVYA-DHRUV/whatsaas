@@ -1,0 +1,17 @@
+{
+  "node": {
+    "4041d1a7792b816cd9c5d5682ff0c8658c68c8001d": {
+      "workers": {
+        "app/[locale]/(admin)/admin/teams/page": {
+          "moduleId": 495782,
+          "async": false,
+          "exportedName": "deleteTeam",
+          "filename": "app/[locale]/(admin)/admin-actions.ts"
+        }
+      },
+      "exportedName": "deleteTeam",
+      "filename": "app/[locale]/(admin)/admin-actions.ts"
+    }
+  },
+  "edge": {}
+}

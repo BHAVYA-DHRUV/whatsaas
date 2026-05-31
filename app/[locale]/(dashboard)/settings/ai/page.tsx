@@ -300,7 +300,7 @@ export default function AiSettingsPage() {
                                 name="systemPrompt" 
                                 value={systemPrompt} 
                                 onChange={(e) => setSystemPrompt(e.target.value)} 
-                                className="min-h-[200px] font-mono text-sm"
+                                className="min-h-50 font-mono text-sm"
                                 placeholder="You are a helpful assistant..."
                             />
                             

@@ -1,0 +1,29 @@
+{
+  "node": {
+    "40cae351380b811da790bcbc801f83131c1da936b9": {
+      "workers": {
+        "app/[locale]/(admin)/admin/chat-theme/page": {
+          "moduleId": 516520,
+          "async": false,
+          "exportedName": "updateChatTheme",
+          "filename": "app/[locale]/(admin)/admin/chat-theme/chat-theme-actions.ts"
+        }
+      },
+      "exportedName": "updateChatTheme",
+      "filename": "app/[locale]/(admin)/admin/chat-theme/chat-theme-actions.ts"
+    },
+    "00f3d4c3e02245bcac21b770c3df8ee8e1a55f647d": {
+      "workers": {
+        "app/[locale]/(admin)/admin/chat-theme/page": {
+          "moduleId": 516520,
+          "async": false,
+          "exportedName": "removeBackgroundImage",
+          "filename": "app/[locale]/(admin)/admin/chat-theme/chat-theme-actions.ts"
+        }
+      },
+      "exportedName": "removeBackgroundImage",
+      "filename": "app/[locale]/(admin)/admin/chat-theme/chat-theme-actions.ts"
+    }
+  },
+  "edge": {}
+}

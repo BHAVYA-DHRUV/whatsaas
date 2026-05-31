@@ -30,8 +30,12 @@ export function getRedis(): RedisClient | null {
     const instance = new IORedis(url, {
       maxRetriesPerRequest: 2,
       lazyConnect: true,
-      enableReadyCheck: true,
-      connectTimeout: 5000,
+      enableReadyCheck: false,
+      connectTimeout: 3000,
+      retryStrategy: (times: number) => (times > 2 ? null : Math.min(times * 200, 600)),
+    });
+    instance.on('error', () => {
+      /* swallow — callers fall back to memory / no-op */
     });
     client = instance as RedisClient;
     return client;

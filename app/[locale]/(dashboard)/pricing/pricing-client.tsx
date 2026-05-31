@@ -79,6 +79,10 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
     }).format(amount / 100);
   };
 
+  const formatLimit = (value: number) => {
+    return value === -1 ? 'Unlimited' : value.toLocaleString();
+  };
+
   const handlePlanSelection = async (plan: Plan) => {
     if (plan.amount === 0) {
       
@@ -117,25 +121,25 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
   };
 
   return (
-    <div className="min-h-full w-full bg-background dark:bg-black py-16 px-4 sm:px-6 lg:px-8 overflow-y-auto font-sans">
-      <div className="max-w-7xl mx-auto text-center mb-16">
+    <div className="w-full min-h-full px-4 py-16 overflow-y-auto font-sans bg-background dark:bg-black sm:px-6 lg:px-8">
+      <div className="mx-auto mb-16 text-center max-w-7xl">
         <div className="flex items-center justify-center gap-2 mb-4">
-          <MessageCircle className="h-5 w-5 text-primary" />
+          <MessageCircle className="w-5 h-5 text-primary" />
           <span className="text-sm font-medium tracking-wide uppercase text-primary">{branding?.name || 'WhatSaaS'}</span>
         </div>
         
-        <h1 className="text-4xl font-medium text-foreground sm:text-6xl tracking-tight mb-4">
+        <h1 className="mb-4 text-4xl font-medium tracking-tight text-foreground sm:text-6xl">
           Scale your Support
           <br />
           <span className="text-muted-foreground/80">With Powerful Automation</span>
         </h1>
         
-        <p className="max-w-xl mx-auto text-lg text-muted-foreground mb-10">
+        <p className="max-w-xl mx-auto mb-10 text-lg text-muted-foreground">
           From solo entrepreneurs to large support teams. Choose the plan that fits your volume of messages and automation needs.
         </p>
 
         <div className="flex flex-col items-center gap-6">
-            <div className="relative inline-flex bg-muted/50 dark:bg-zinc-900 border border-border p-1 rounded-full">
+            <div className="relative inline-flex p-1 border rounded-full bg-muted/50 dark:bg-zinc-900 border-border">
             <button
                 onClick={() => setBillingCycle('month')}
                 className={cn(
@@ -166,16 +170,16 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
                 <button
                     onClick={handlePortalAccess}
                     disabled={isPortalLoading}
-                    className="text-sm text-muted-foreground underline hover:text-foreground flex items-center gap-1"
+                    className="flex items-center gap-1 text-sm underline text-muted-foreground hover:text-foreground"
                 >
-                    {isPortalLoading && <Loader2 className="h-3 w-3 animate-spin"/>}
+                    {isPortalLoading && <Loader2 className="w-3 h-3 animate-spin"/>}
                     {t('manage_billing')}
                 </button>
             )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto items-start pb-40">
+      <div className="grid items-start grid-cols-1 gap-6 pb-40 mx-auto md:grid-cols-3 max-w-7xl">
         {filteredPlans.map((plan, index) => {
           const isFeatured = index === featuredPlanIndex;
           const isCurrentPlan = currentTeam?.planId === plan.id;
@@ -193,20 +197,20 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
               )}
             >
               <div className="mb-8">
-                <div className="h-12 w-12 rounded-full border border-border/50 bg-gradient-to-br from-background to-muted flex items-center justify-center mb-6">
+                <div className="flex items-center justify-center w-12 h-12 mb-6 border rounded-full border-border/50 bg-linear-to-br from-background to-muted">
                   <MessageCircle className={cn("h-6 w-6", isFeatured ? "text-primary" : "text-foreground")} />
                 </div>
                 
                 <h3 className={cn("text-2xl font-medium mb-2", isFeatured ? "text-white" : "text-foreground")}>
                   {plan.name}
-                  {isCurrentPlan && <span className="ml-2 text-xs bg-green-500/20 text-green-500 px-2 py-1 rounded-full border border-green-500/30">Active</span>}
+                  {isCurrentPlan && <span className="px-2 py-1 ml-2 text-xs text-green-500 border rounded-full bg-green-500/20 border-green-500/30">Active</span>}
                 </h3>
                 <p className={cn("text-sm", isFeatured ? "text-zinc-400" : "text-muted-foreground")}>
                   {plan.description || "Ideal for growing businesses."}
                 </p>
               </div>
 
-              <div className="mb-8 flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1 mb-8">
                 <span className={cn("text-5xl font-semibold tracking-tight", isFeatured ? "text-white" : "text-foreground")}>
                   {plan.amount === 0 ? "Free" : formatCurrency(plan.amount, plan.currency)}
                 </span>
@@ -229,7 +233,7 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
                 )}
               >
                 {loadingId === plan.id ? (
-                    <Loader2 className="animate-spin h-4 w-4" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                 ) : isCurrentPlan ? (
                     "Current Plan"
                 ) : (
@@ -237,12 +241,12 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
                 )}
               </Button>
 
-              <div className="space-y-6 flex-1">
+              <div className="flex-1 space-y-6">
                 <p className={cn("text-sm font-medium", isFeatured ? "text-white" : "text-foreground")}>What's included</p>
                 <ul className="space-y-4">
-                  <FeatureItem text={`${plan.maxUsers} Team Members`} isFeatured={isFeatured} />
-                  <FeatureItem text={`${plan.maxContacts.toLocaleString()} Contacts`} isFeatured={isFeatured} />
-                  <FeatureItem text={`${plan.maxInstances} WhatsApp Connections`} isFeatured={isFeatured} />
+                  <FeatureItem text={`${formatLimit(plan.maxUsers)} Team Members`} isFeatured={isFeatured} />
+                  <FeatureItem text={`${formatLimit(plan.maxContacts)} Contacts`} isFeatured={isFeatured} />
+                  <FeatureItem text={`${formatLimit(plan.maxInstances)} WhatsApp Connections`} isFeatured={isFeatured} />
                   <FeatureItem text="AI Agent (OpenAI/Gemini)" isEnabled={plan.isAiEnabled} isFeatured={isFeatured} />
                   <FeatureItem text="Visual Flow Builder" isEnabled={plan.isFlowBuilderEnabled} isFeatured={isFeatured} />
                   <FeatureItem text="Mass Campaigns" isEnabled={plan.isCampaignsEnabled} isFeatured={isFeatured} />
@@ -255,7 +259,7 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
       </div>
 
       <Dialog open={isConfirmationOpen} onOpenChange={setIsConfirmationOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle>Confirm Downgrade</DialogTitle>
             <DialogDescription>
@@ -264,14 +268,14 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
           </DialogHeader>
           
           <div className="py-4">
-             <div className="flex items-start gap-3 p-4 bg-muted/50 rounded-lg">
+             <div className="flex items-start gap-3 p-4 rounded-lg bg-muted/50">
                 <Sparkles className="h-5 w-5 text-primary mt-0.5" />
                 <div className="space-y-1">
                     <p className="text-sm font-medium text-foreground">Plan Limits</p>
-                    <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1">
-                        <li>{selectedFreePlan?.maxUsers} User(s)</li>
-                        <li>{selectedFreePlan?.maxContacts} Contacts</li>
-                        <li>{selectedFreePlan?.maxInstances} WhatsApp Connection</li>
+                    <ul className="pl-4 space-y-1 text-xs list-disc text-muted-foreground">
+                        <li>{formatLimit(selectedFreePlan?.maxUsers ?? 1)} User(s)</li>
+                        <li>{formatLimit(selectedFreePlan?.maxContacts ?? 500)} Contacts</li>
+                        <li>{formatLimit(selectedFreePlan?.maxInstances ?? 1)} WhatsApp Connection</li>
                     </ul>
                 </div>
              </div>
@@ -280,7 +284,7 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsConfirmationOpen(false)}>Cancel</Button>
             <Button onClick={confirmFreePlan} disabled={loadingId !== null}>
-                {loadingId === selectedFreePlan?.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRight className="h-4 w-4 mr-2" />}
+                {loadingId === selectedFreePlan?.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowRight className="w-4 h-4 mr-2" />}
                 Confirm Switch
             </Button>
           </DialogFooter>
@@ -289,16 +293,16 @@ function PricingClientInner({ allPlans, currentTeam }: { allPlans: Plan[]; curre
 
       {}
       <Dialog open={!!offlineModal} onOpenChange={(open) => { if (!open) setOfflineModal(null); }}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-106.25">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Banknote className="h-5 w-5" />
+              <Banknote className="w-5 h-5" />
               {t('offline_title')}
             </DialogTitle>
             <DialogDescription>{t('offline_desc')}</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-3">
-            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+            <div className="p-4 space-y-2 rounded-lg bg-muted/50">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{t('offline_plan')}</span>
                 <span className="font-medium">{offlineModal?.planName}</span>
@@ -330,7 +334,7 @@ function FeatureItem({ text, isEnabled = true, isFeatured }: { text: string; isE
           ? (isFeatured ? "border-primary text-primary bg-primary/10" : "border-foreground text-foreground")
           : (isFeatured ? "border-zinc-700 text-zinc-700" : "border-zinc-300 text-zinc-300 dark:border-zinc-800 dark:text-zinc-800")
       )}>
-        <Check className="h-3 w-3" />
+        <Check className="w-3 h-3" />
       </div>
       <span className={cn(
         "text-sm", 

@@ -1,0 +1,12 @@
+module.exports=[137936,(a,b,c)=>{"use strict";Object.defineProperty(c,"__esModule",{value:!0}),Object.defineProperty(c,"registerServerReference",{enumerable:!0,get:function(){return d.registerServerReference}});let d=a.r(211857)},713095,(a,b,c)=>{"use strict";function d(a){for(let b=0;b<a.length;b++){let c=a[b];if("function"!=typeof c)throw Object.defineProperty(Error(`A "use server" file can only export async functions, found ${typeof c}.
+Read more: https://nextjs.org/docs/messages/invalid-use-server-value`),"__NEXT_ERROR_CODE",{value:"E352",enumerable:!1,configurable:!0})}}Object.defineProperty(c,"__esModule",{value:!0}),Object.defineProperty(c,"ensureServerEntryExports",{enumerable:!0,get:function(){return d}})},192304,a=>{"use strict";var b=a.i(137936),c=a.i(53112),d=a.i(745069),e=a.i(149477),f=a.i(713095);let g=c.z.object({firstName:c.z.string().min(1,"First name is required"),lastName:c.z.string().min(1,"Last name is required"),email:c.z.string().email("Invalid email address"),subject:c.z.string().min(1,"Subject is required"),message:c.z.string().min(10,"Message must be at least 10 characters")});async function h(a,b){let c=await (0,e.getBranding)(),f=c?.name||"WhatSaaS",h={firstName:b.get("firstName"),lastName:b.get("lastName"),email:b.get("email"),subject:b.get("subject"),message:b.get("message")},i=g.safeParse(h);if(!i.success)return{error:i.error.issues[0].message};let{firstName:j,lastName:k,email:l,subject:m,message:n}=i.data,o=process.env.RESEND_API_KEY?new d.Resend(process.env.RESEND_API_KEY):null;try{if(!o)return console.log("Resend is not configured"),{success:"Message saved successfully."};return await o.emails.send({from:`${f} Contact <${process.env.RESEND_FROM_EMAIL||"onboarding@resend.dev"}>`,to:process.env.SUPPORT_EMAIL||"delivered@resend.dev",replyTo:l,subject:`[Contact Form] ${m}`,html:`
+      <h3>New Contact Message</h3>
+      <p><strong>Name:</strong> ${j} ${k}</p>
+      <p><strong>Email:</strong> ${l}</p>
+      <p><strong>Subject:</strong> ${m}</p>
+      <hr />
+      <p><strong>Message:</strong></p>
+      <p>${n.replace(/\n/g,"<br>")}</p>
+    `}),{success:"Message sent successfully! We'll get back to you soon."}}catch(a){return console.error(a),{error:"Failed to send message. Please try again later."}}}(0,f.ensureServerEntryExports)([h]),(0,b.registerServerReference)(h,"60febb8f24a998cc4073d723fd4422de4e178d53a7",null),a.s([],9834),a.i(9834),a.s(["60febb8f24a998cc4073d723fd4422de4e178d53a7",0,h],192304)}];
+
+//# sourceMappingURL=_0ilp5~6._.js.map

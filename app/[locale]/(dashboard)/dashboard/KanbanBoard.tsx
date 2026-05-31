@@ -87,7 +87,7 @@ export default function KanbanBoard() {
   }, [stagesData]);
 
   useEffect(() => {
-    if (stages.length > 0 && chats) {
+    if (stages.length > 0 && Array.isArray(chats)) {
       const newCols: Record<string, ChatCard[]> = {};
       stages.forEach(s => newCols[s.id] = []);
       newCols['unassigned'] = [];
@@ -436,8 +436,8 @@ function CardItem({ card, index, toggleAlert, t }: { card: ChatCard, index: numb
                         </DropdownMenu>
                     </div>
 
-                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded-md min-h-[40px] flex items-center">
-                        <span className="line-clamp-3 break-words" title={card.lastMessageText}>
+                    <div className="text-xs text-muted-foreground bg-muted p-2 rounded-md min-h-10 flex items-center">
+                        <span className="line-clamp-3 wrap-break-word" title={card.lastMessageText}>
                             {card.lastMessageText && !card.lastMessageText.startsWith('@@') ? card.lastMessageText : "..."}
                         </span>
                     </div>

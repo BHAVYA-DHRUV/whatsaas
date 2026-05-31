@@ -211,10 +211,20 @@ function getStatusWeight(status: string | null): number {
 }
 
 export async function POST(request: Request) {
-  try {
-    if (!(await verifyEvolutionWebhook(request))) {
-      return NextResponse.json({ error: 'Invalid webhook credentials' }, { status: 401 });
-    }
+    try {
+        if (!(await verifyEvolutionWebhook(request))) {
+            try {
+                const headersSnapshot: any = {};
+                request.headers.forEach((v, k) => (headersSnapshot[k] = v));
+                const bodyText = await request.clone().text().catch(() => '');
+                console.warn('[Webhook] Evolution auth failed', { ip: getClientIp(request), headers: headersSnapshot });
+                await logWebhookEvent(0, 'unknown', 'auth_failure', null, null, 'ignored', 'invalid_credentials');
+                return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
+            } catch (e) {
+                console.warn('[Webhook] Evolution auth failed (logging error)');
+                return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
+            }
+        }
 
     const limited = await checkRateLimit(`webhook:${getClientIp(request)}`, RATE_LIMITS.webhook);
     if (limited) return limited;

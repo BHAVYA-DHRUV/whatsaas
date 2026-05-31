@@ -57,6 +57,52 @@
   --radius-sm: calc(var(--radius) - 4px);
 }
 
+/* Color Theme Variables */
+.theme-whatsapp {
+  --primary: 142 71% 45%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 142 50% 95%;
+  --secondary-foreground: 142 71% 30%;
+  --accent: 142 60% 90%;
+  --accent-foreground: 142 71% 35%;
+}
+
+.theme-midnight {
+  --primary: 222 47% 11%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 217 33% 17%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 217 33% 25%;
+  --accent-foreground: 210 40% 98%;
+}
+
+.theme-ocean {
+  --primary: 199 89% 48%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 199 70% 95%;
+  --secondary-foreground: 199 89% 35%;
+  --accent: 199 80% 90%;
+  --accent-foreground: 199 89% 40%;
+}
+
+.theme-purple {
+  --primary: 270 60% 50%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 40% 95%;
+  --secondary-foreground: 270 60% 35%;
+  --accent: 270 50% 90%;
+  --accent-foreground: 270 60% 40%;
+}
+
+.theme-enterprise {
+  --primary: 215 25% 27%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 215 20% 93%;
+  --secondary-foreground: 215 25% 27%;
+  --accent: 215 25% 90%;
+  --accent-foreground: 215 25% 27%;
+}
+
 /*
   The default border color has changed to `currentColor` in Tailwind CSS v4,
   so we've added these compatibility styles to make sure everything still

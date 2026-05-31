@@ -519,19 +519,19 @@ export default function ContactsPage() {
     };
 
     return (
-        <div className="flex flex-col h-full bg-muted p-6 overflow-hidden">
-            <header className="flex justify-between items-center mb-6 shrink-0">
+        <div className="flex flex-col h-full p-6 overflow-hidden bg-muted">
+            <header className="flex items-center justify-between mb-6 shrink-0">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">{t('header_title')}</h1>
                     <p className="text-sm text-muted-foreground">{t('header_subtitle')}</p>
                 </div>
                 <div className="flex gap-2">
                      <Button variant="outline" onClick={() => setIsFieldsManagerOpen(true)}>
-                        <Settings2 className="h-4 w-4 mr-2"/>
+                        <Settings2 className="w-4 h-4 mr-2"/>
                         Custom Fields
                      </Button>
                      <Button onClick={() => setIsImportOpen(true)}>
-                        <Upload className="h-4 w-4 mr-2"/>
+                        <Upload className="w-4 h-4 mr-2"/>
                         {t('import_btn')}
                      </Button>
                 </div>
@@ -540,7 +540,7 @@ export default function ContactsPage() {
             <div className="flex flex-col gap-4 mb-4 shrink-0">
                 <div className="flex items-center gap-4">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Search className="absolute w-4 h-4 -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
                         <Input 
                             placeholder={t('search_placeholder')} 
                             className="pl-10 bg-background"
@@ -553,7 +553,7 @@ export default function ContactsPage() {
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="outline" className="bg-background">
-                                    <Filter className="h-4 w-4 mr-2" /> {t('columns_btn')}
+                                    <Filter className="w-4 h-4 mr-2" /> {t('columns_btn')}
                                 </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">
@@ -574,14 +574,14 @@ export default function ContactsPage() {
                         </DropdownMenu>
 
                         <Button variant="outline" className="bg-background" onClick={handleExport}>
-                            <FileSpreadsheet className="h-4 w-4 mr-2" /> {t('export_btn')}
+                            <FileSpreadsheet className="w-4 h-4 mr-2" /> {t('export_btn')}
                         </Button>
                     </div>
                 </div>
 
-                <div className="flex gap-4 items-center overflow-x-auto pb-1">
+                <div className="flex items-center gap-4 pb-1 overflow-x-auto">
                     <Select value={filterAgent} onValueChange={setFilterAgent}>
-                        <SelectTrigger className="w-[180px] bg-background">
+                        <SelectTrigger className="w-45 bg-background">
                             <SelectValue placeholder={t('filter_agent')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -594,7 +594,7 @@ export default function ContactsPage() {
                     </Select>
 
                     <Select value={filterStage} onValueChange={setFilterStage}>
-                        <SelectTrigger className="w-[180px] bg-background">
+                        <SelectTrigger className="w-45 bg-background">
                             <SelectValue placeholder={t('filter_stage')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -607,7 +607,7 @@ export default function ContactsPage() {
                     </Select>
 
                     <Select value={filterTag} onValueChange={setFilterTag}>
-                        <SelectTrigger className="w-[180px] bg-background">
+                        <SelectTrigger className="w-45 bg-background">
                             <SelectValue placeholder={t('filter_tag')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -619,7 +619,7 @@ export default function ContactsPage() {
                     </Select>
 
                     <Select value={filterInstance} onValueChange={setFilterInstance}>
-                        <SelectTrigger className="w-[180px] bg-background">
+                        <SelectTrigger className="w-45 bg-background">
                             <SelectValue placeholder={t('filter_instance')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -632,7 +632,7 @@ export default function ContactsPage() {
                     </Select>
 
                     <Select value={filterDepartment} onValueChange={setFilterDepartment}>
-                        <SelectTrigger className="w-[180px] bg-background">
+                        <SelectTrigger className="w-45 bg-background">
                             <SelectValue placeholder={t('filter_department')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -645,29 +645,29 @@ export default function ContactsPage() {
                     </Select>
 
                     {selectedIds.size > 0 && (
-                        <div className="ml-auto text-sm text-muted-foreground flex items-center gap-2">
-                            <span className="bg-primary/10 text-primary px-2 py-1 rounded-md font-medium">
+                        <div className="flex items-center gap-2 ml-auto text-sm text-muted-foreground">
+                            <span className="px-2 py-1 font-medium rounded-md bg-primary/10 text-primary">
                                 {selectedIds.size} {t('selected_count')}
                             </span>
-                            <Button variant="outline" size="sm" onClick={() => setIsBulkMoveOpen(true)} className="h-7 px-2">
-                                <ArrowRightLeft className="h-3 w-3 mr-1" /> {t('move_btn')}
+                            <Button variant="outline" size="sm" onClick={() => setIsBulkMoveOpen(true)} className="px-2 h-7">
+                                <ArrowRightLeft className="w-3 h-3 mr-1" /> {t('move_btn')}
                             </Button>
-                            <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)} className="h-7 px-2">
-                                <Trash2 className="h-3 w-3 mr-1" /> {t('delete_btn')}
+                            <Button variant="destructive" size="sm" onClick={() => setIsBulkDeleteOpen(true)} className="px-2 h-7">
+                                <Trash2 className="w-3 h-3 mr-1" /> {t('delete_btn')}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="h-7 px-2">
-                                <X className="h-3 w-3 mr-1" /> {t('clear_selection')}
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())} className="px-2 h-7">
+                                <X className="w-3 h-3 mr-1" /> {t('clear_selection')}
                             </Button>
                         </div>
                     )}
                 </div>
             </div>
 
-            <div className="flex-1 bg-background rounded-xl border border-border shadow-sm overflow-hidden flex flex-col relative">
+            <div className="relative flex flex-col flex-1 overflow-hidden border shadow-sm bg-background rounded-xl border-border">
                 <div className="flex-1 overflow-auto">
                     <div className="min-w-max"> 
-                        <div className="flex border-b bg-muted/50 sticky top-0 z-20">
-                            <div className="w-[50px] shrink-0 border-r flex items-center justify-center px-4 py-3 bg-muted/50">
+                        <div className="sticky top-0 z-20 flex border-b bg-muted/50">
+                            <div className="w-12.5 shrink-0 border-r flex items-center justify-center px-4 py-3 bg-muted/50">
                                 <Checkbox 
                                     checked={filteredContacts.length > 0 && filteredContacts.every(c => selectedIds.has(c.id))}
                                     onCheckedChange={handleSelectAll}
@@ -677,32 +677,32 @@ export default function ContactsPage() {
                                 <div 
                                     key={col.id} 
                                     style={{ width: col.width, minWidth: col.width }}
-                                    className="relative px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center shrink-0 border-r last:border-r-0 bg-muted/50"
+                                    className="relative flex items-center px-4 py-3 text-xs font-semibold tracking-wider uppercase border-r text-muted-foreground shrink-0 last:border-r-0 bg-muted/50"
                                 >
                                     <span className="truncate">{col.label}</span>
                                     <div 
-                                        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/50 transition-colors"
+                                        className="absolute top-0 bottom-0 right-0 w-1 transition-colors cursor-col-resize hover:bg-primary/50"
                                         onMouseDown={(e) => handleMouseDown(e, col.id)}
                                     />
                                 </div>
                             ))}
-                            <div className="w-[60px] shrink-0 border-l bg-muted/95 backdrop-blur-sm px-4 py-3 flex justify-center sticky right-0 z-30 ml-auto shadow-[-5px_0px_10px_rgba(0,0,0,0.02)]"></div>
+                            <div className="w-15 shrink-0 border-l bg-muted/95 backdrop-blur-sm px-4 py-3 flex justify-center sticky right-0 z-30 ml-auto shadow-[-5px_0px_10px_rgba(0,0,0,0.02)]"></div>
                         </div>
 
                         <div className="">
                             {loadingContacts || loadingFields ? (
-                                <div className="flex justify-center items-center h-40 w-full">
-                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                <div className="flex items-center justify-center w-full h-40">
+                                    <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                                 </div>
                             ) : filteredContacts.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 text-muted-foreground w-full">
-                                    <UserIcon className="h-12 w-12 mb-2 opacity-20" />
+                                <div className="flex flex-col items-center justify-center w-full h-64 text-muted-foreground">
+                                    <UserIcon className="w-12 h-12 mb-2 opacity-20" />
                                     <p>{t('no_contacts_found')}</p>
                                 </div>
                             ) : (
                                 filteredContacts.map(contact => (
-                                    <div key={contact.id} className="flex border-b last:border-0 hover:bg-muted/50 transition-colors items-center h-[72px]">
-                                        <div className="w-[50px] shrink-0 border-r flex items-center justify-center h-full">
+                                    <div key={contact.id} className="flex items-center transition-colors border-b last:border-0 hover:bg-muted/50 h-18">
+                                        <div className="w-12.5 shrink-0 border-r flex items-center justify-center h-full">
                                             <Checkbox 
                                                 checked={selectedIds.has(contact.id)}
                                                 onCheckedChange={() => toggleSelection(contact.id)}
@@ -712,18 +712,18 @@ export default function ContactsPage() {
                                             <div 
                                                 key={col.id} 
                                                 style={{ width: col.width, minWidth: col.width }}
-                                                className="px-4 shrink-0 overflow-hidden flex items-center border-r last:border-r-0 h-full"
+                                                className="flex items-center h-full px-4 overflow-hidden border-r shrink-0 last:border-r-0"
                                             >
                                                 {col.id === 'contact' && (
-                                                    <div className="flex items-center gap-3 overflow-hidden w-full">
-                                                        <Avatar className="h-10 w-10 border border-border shrink-0">
+                                                    <div className="flex items-center w-full gap-3 overflow-hidden">
+                                                        <Avatar className="w-10 h-10 border border-border shrink-0">
                                                             <AvatarImage src={contact.profilePicUrl} />
                                                             <AvatarFallback className="bg-primary/10 text-primary">{contact.name.substring(0, 2).toUpperCase()}</AvatarFallback>
                                                         </Avatar>
                                                         <div className="overflow-hidden">
-                                                            <p className="font-medium text-foreground truncate">{contact.name}</p>
-                                                            <div className="flex items-center text-xs text-muted-foreground truncate">
-                                                                <Phone className="h-3 w-3 mr-1" />
+                                                            <p className="font-medium truncate text-foreground">{contact.name}</p>
+                                                            <div className="flex items-center text-xs truncate text-muted-foreground">
+                                                                <Phone className="w-3 h-3 mr-1" />
                                                                 {contact.phone || 'N/A'}
                                                             </div>
                                                         </div>
@@ -731,36 +731,36 @@ export default function ContactsPage() {
                                                 )}
                                                 {col.id === 'instance' && (
                                                     contact.instanceName ? (
-                                                        <Badge variant="outline" className="bg-muted font-normal border-border truncate">
+                                                        <Badge variant="outline" className="font-normal truncate bg-muted border-border">
                                                             {contact.instanceName}
                                                         </Badge>
-                                                    ) : <span className="text-xs text-muted-foreground italic">{t('no_instance')}</span>
+                                                    ) : <span className="text-xs italic text-muted-foreground">{t('no_instance')}</span>
                                                 )}
                                                 {col.id === 'stage' && (
                                                     contact.funnelStage ? (
-                                                        <Badge variant="outline" className="bg-muted font-normal border-border truncate">
+                                                        <Badge variant="outline" className="font-normal truncate bg-muted border-border">
                                                             {contact.funnelStage.emoji} {contact.funnelStage.name}
                                                         </Badge>
-                                                    ) : <span className="text-xs text-muted-foreground italic">{t('no_stage')}</span>
+                                                    ) : <span className="text-xs italic text-muted-foreground">{t('no_stage')}</span>
                                                 )}
                                                 {col.id === 'agent' && (
                                                     contact.assignedUser ? (
                                                         <div className="flex items-center gap-2 overflow-hidden">
-                                                            <Avatar className="h-6 w-6 shrink-0">
+                                                            <Avatar className="w-6 h-6 shrink-0">
                                                                 <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
                                                                     {(contact.assignedUser.name || contact.assignedUser.email || '??').substring(0, 2).toUpperCase()}
                                                                 </AvatarFallback>
                                                             </Avatar>
-                                                            <span className="text-sm text-foreground truncate">{contact.assignedUser.name || contact.assignedUser.email || "Unknown"}</span>
+                                                            <span className="text-sm truncate text-foreground">{contact.assignedUser.name || contact.assignedUser.email || "Unknown"}</span>
                                                         </div>
-                                                    ) : <span className="text-xs text-muted-foreground italic">{t('unassigned')}</span>
+                                                    ) : <span className="text-xs italic text-muted-foreground">{t('unassigned')}</span>
                                                 )}
                                                 {col.id === 'department' && (
                                                     contact.assignedDepartment ? (
-                                                        <Badge variant="outline" className="bg-muted font-normal border-border truncate">
+                                                        <Badge variant="outline" className="font-normal truncate bg-muted border-border">
                                                             {contact.assignedDepartment.name}
                                                         </Badge>
-                                                    ) : <span className="text-xs text-muted-foreground italic">{t('no_department')}</span>
+                                                    ) : <span className="text-xs italic text-muted-foreground">{t('no_department')}</span>
                                                 )}
                                                 {col.id === 'tags' && (
                                                     <div className="flex gap-1 overflow-hidden flex-nowrap">
@@ -775,7 +775,7 @@ export default function ContactsPage() {
                                                     </div>
                                                 )}
                                                 {col.isCustom && contact.customData && (
-                                                    <span className="text-sm text-foreground truncate">
+                                                    <span className="text-sm truncate text-foreground">
                                                         {col.type === 'boolean' 
                                                             ? (contact.customData[col.fieldKey!] ? 'Yes' : 'No')
                                                             : contact.customData[col.fieldKey!]
@@ -784,19 +784,19 @@ export default function ContactsPage() {
                                                 )}
                                             </div>
                                         ))}
-                                        <div className="w-[60px] shrink-0 px-4 flex justify-center sticky right-0 h-full items-center bg-background/95 backdrop-blur-sm border-l ml-auto z-10 shadow-[-5px_0px_10px_rgba(0,0,0,0.02)]">
+                                        <div className="w-15 shrink-0 px-4 flex justify-center sticky right-0 h-full items-center bg-background/95 backdrop-blur-sm border-l ml-auto z-10 shadow-[-5px_0px_10px_rgba(0,0,0,0.02)]">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                        <MoreVertical className="h-4 w-4" />
+                                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-foreground">
+                                                        <MoreVertical className="w-4 h-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem onClick={() => handleEditClick(contact)}>
-                                                        <Edit className="h-4 w-4 mr-2" /> {t('edit_menu')}
+                                                        <Edit className="w-4 h-4 mr-2" /> {t('edit_menu')}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteClick(contact)}>
-                                                        <Trash2 className="h-4 w-4 mr-2" /> {t('delete_menu')}
+                                                        <Trash2 className="w-4 h-4 mr-2" /> {t('delete_menu')}
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -810,18 +810,18 @@ export default function ContactsPage() {
             </div>
 
             <Dialog open={isFieldsManagerOpen} onOpenChange={setIsFieldsManagerOpen}>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-150">
                     <DialogHeader>
                         <DialogTitle>Manage Custom Fields</DialogTitle>
                         <DialogDescription>Add or remove custom fields for your contacts.</DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="flex gap-2 items-end">
-                            <div className="grid gap-2 flex-1">
+                        <div className="flex items-end gap-2">
+                            <div className="grid flex-1 gap-2">
                                 <Label>Field Name</Label>
                                 <Input value={newFieldName} onChange={e => setNewFieldName(e.target.value)} placeholder="e.g. CPF, Birthday" />
                             </div>
-                            <div className="grid gap-2 w-[140px]">
+                            <div className="grid gap-2 w-35">
                                 <Label>Type</Label>
                                 <Select value={newFieldType} onValueChange={(v: any) => setNewFieldType(v)}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -832,30 +832,30 @@ export default function ContactsPage() {
                                 </Select>
                             </div>
                             <Button onClick={handleCreateField} disabled={isSaving || !newFieldName}>
-                                <Plus className="h-4 w-4" />
+                                <Plus className="w-4 h-4" />
                             </Button>
                         </div>
                         
-                        <div className="border rounded-md mt-4">
-                            <div className="bg-muted p-2 text-xs font-semibold grid grid-cols-12 gap-2">
+                        <div className="mt-4 border rounded-md">
+                            <div className="grid grid-cols-12 gap-2 p-2 text-xs font-semibold bg-muted">
                                 <div className="col-span-6">Name</div>
                                 <div className="col-span-4">Type</div>
                                 <div className="col-span-2 text-right">Action</div>
                             </div>
-                            <div className="max-h-[300px] overflow-y-auto">
+                            <div className="overflow-y-auto max-h-75">
                                 {customFields?.map(field => (
-                                    <div key={field.id} className="p-2 border-t grid grid-cols-12 gap-2 items-center text-sm">
+                                    <div key={field.id} className="grid items-center grid-cols-12 gap-2 p-2 text-sm border-t">
                                         <div className="col-span-6 font-medium">{field.name}</div>
-                                        <div className="col-span-4 text-muted-foreground capitalize">{field.type}</div>
+                                        <div className="col-span-4 capitalize text-muted-foreground">{field.type}</div>
                                         <div className="col-span-2 text-right">
-                                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDeleteField(field.id)}>
-                                                <Trash2 className="h-3 w-3" />
+                                            <Button variant="ghost" size="icon" className="w-6 h-6 text-destructive" onClick={() => handleDeleteField(field.id)}>
+                                                <Trash2 className="w-3 h-3" />
                                             </Button>
                                         </div>
                                     </div>
                                 ))}
                                 {(!customFields || customFields.length === 0) && (
-                                    <div className="p-4 text-center text-muted-foreground text-sm">No custom fields created.</div>
+                                    <div className="p-4 text-sm text-center text-muted-foreground">No custom fields created.</div>
                                 )}
                             </div>
                         </div>
@@ -886,8 +886,8 @@ export default function ContactsPage() {
                                 <p className="text-xs text-muted-foreground">{t('import_dialog.instance_hint')}</p>
                             </div>
                         )}
-                        <div className="p-4 border border-dashed rounded-lg bg-muted/50 flex flex-col items-center justify-center gap-2 text-center">
-                            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                        <div className="flex flex-col items-center justify-center gap-2 p-4 text-center border border-dashed rounded-lg bg-muted/50">
+                            <Upload className="w-8 h-8 mb-2 text-muted-foreground" />
                             <p className="text-sm text-muted-foreground">{t('import_dialog.drag_text')}</p>
                             <Input 
                                 ref={fileInputRef}
@@ -902,21 +902,21 @@ export default function ContactsPage() {
                                 {t('import_dialog.select_file')}
                             </Button>
                             {importFile && (
-                                <div className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground">
-                                    <FileSpreadsheet className="h-4 w-4" />
+                                <div className="flex items-center gap-2 mt-2 text-sm font-medium text-foreground">
+                                    <FileSpreadsheet className="w-4 h-4" />
                                     {importFile.name}
-                                    <X className="h-4 w-4 cursor-pointer text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setImportFile(null); }} />
+                                    <X className="w-4 h-4 cursor-pointer text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); setImportFile(null); }} />
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex items-center justify-between p-4 bg-muted rounded-md">
+                        <div className="flex items-center justify-between p-4 rounded-md bg-muted">
                             <div className="space-y-1">
                                 <h4 className="text-sm font-medium">{t('import_dialog.template_title')}</h4>
                                 <p className="text-xs text-muted-foreground">{t('import_dialog.template_desc')}</p>
                             </div>
                             <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
-                                <Download className="h-4 w-4 mr-2" />
+                                <Download className="w-4 h-4 mr-2" />
                                 {t('import_dialog.download_btn')}
                             </Button>
                         </div>
@@ -926,7 +926,7 @@ export default function ContactsPage() {
                             {t('import_dialog.cancel_btn')}
                         </Button>
                         <Button onClick={handleImportSubmit} disabled={!importFile || isSaving}>
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                             {t('import_dialog.upload_btn')}
                         </Button>
                     </DialogFooter>
@@ -934,7 +934,7 @@ export default function ContactsPage() {
             </Dialog>
 
             <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-                <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+                <DialogContent className="sm:max-w-125 max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>{t('edit_dialog.title')}</DialogTitle>
                         <DialogDescription>{t('edit_dialog.description')}</DialogDescription>
@@ -987,8 +987,8 @@ export default function ContactsPage() {
                         
                         {customFields && customFields.length > 0 && (
                             <>
-                                <div className="border-t my-2" />
-                                <Label className="text-xs font-semibold text-muted-foreground uppercase">Custom Fields</Label>
+                                <div className="my-2 border-t" />
+                                <Label className="text-xs font-semibold uppercase text-muted-foreground">Custom Fields</Label>
                                 <div className="grid gap-3">
                                     {customFields.map(cf => (
                                         <div key={cf.id} className="grid gap-1.5">
@@ -1011,13 +1011,13 @@ export default function ContactsPage() {
                                         </div>
                                     ))}
                                 </div>
-                                <div className="border-t my-2" />
+                                <div className="my-2 border-t" />
                             </>
                         )}
 
                         <div className="grid gap-2">
                             <Label>{t('edit_dialog.tags_label')}</Label>
-                            <div className="flex flex-wrap gap-2 p-3 border rounded-md min-h-[60px] bg-muted/50">
+                            <div className="flex flex-wrap gap-2 p-3 border rounded-md min-h-15 bg-muted/50">
                                 {allTags?.map((tag: any) => {
                                     const isSelected = editTagIds.has(tag.id);
                                     return (
@@ -1033,7 +1033,7 @@ export default function ContactsPage() {
                                             }}
                                         >
                                             {tag.name}
-                                            {isSelected && <X className="h-3 w-3 ml-1" />}
+                                            {isSelected && <X className="w-3 h-3 ml-1" />}
                                         </Badge>
                                     );
                                 })}
@@ -1049,7 +1049,7 @@ export default function ContactsPage() {
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setIsEditOpen(false)}>{t('edit_dialog.cancel_btn')}</Button>
                         <Button onClick={handleSaveContact} disabled={isSaving}>
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                             {t('edit_dialog.save_btn')}
                         </Button>
                     </DialogFooter>
@@ -1095,7 +1095,7 @@ export default function ContactsPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => { setIsBulkMoveOpen(false); setBulkMoveTargetInstance(''); }}>{t('bulk_move_dialog.cancel_btn')}</Button>
                         <Button onClick={handleBulkMove} disabled={isSaving || !bulkMoveTargetInstance}>
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ArrowRightLeft className="h-4 w-4 mr-2" />}
+                            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowRightLeft className="w-4 h-4 mr-2" />}
                             {t('bulk_move_dialog.confirm_btn')}
                         </Button>
                     </DialogFooter>
@@ -1113,7 +1113,7 @@ export default function ContactsPage() {
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsBulkDeleteOpen(false)}>{t('bulk_delete_dialog.cancel_btn')}</Button>
                         <Button variant="destructive" onClick={handleBulkDelete} disabled={isSaving}>
-                            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('bulk_delete_dialog.confirm_btn')}
+                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : t('bulk_delete_dialog.confirm_btn')}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

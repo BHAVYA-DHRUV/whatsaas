@@ -1,0 +1,17 @@
+{
+  "node": {
+    "00d5275fe9c38e58dd392fc9d1b09f60662122d2c3": {
+      "workers": {
+        "app/[locale]/(dashboard)/campaigns/new/page": {
+          "moduleId": 363623,
+          "async": false,
+          "exportedName": "signOut",
+          "filename": "app/[locale]/(login)/actions.ts"
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "app/[locale]/(login)/actions.ts"
+    }
+  },
+  "edge": {}
+}

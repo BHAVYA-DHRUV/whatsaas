@@ -24,14 +24,26 @@ const nextConfig: ExtendedNextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24,
   },
-  experimental: {},
+  experimental: {
+    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+  },
   webpack(config, { dev, isServer }) {
     if (dev) {
       config.cache = true;
       config.devtool = false;
       config.watchOptions = {
         ...config.watchOptions,
-        ignored: ['**/.next/**', '**/node_modules/**'],
+        ignored: [
+          '**/.next/**',
+          '**/node_modules/**',
+          '**/evolution-api/**',
+          '**/workers/**',
+          '**/docker/**',
+          '**/logs/**',
+          '**/dist/**',
+        ],
+        poll: 1000,
+        aggregateTimeout: 300,
       };
     }
 

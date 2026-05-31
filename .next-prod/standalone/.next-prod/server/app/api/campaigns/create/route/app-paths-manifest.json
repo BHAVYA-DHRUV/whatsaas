@@ -1,0 +1,3 @@
+{
+  "/api/campaigns/create/route": "app/api/campaigns/create/route.js"
+}

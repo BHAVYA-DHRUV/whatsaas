@@ -36,15 +36,45 @@ function filterChatsByPermissions(
 
 function formatChatRow(chat: ChatWithContact) {
   const contact = chat.contact;
-  if (!contact) return chat;
+  const formattedContact = contact
+    ? (() => {
+        const formatted = {
+          ...contact,
+          tags: contact.contactTags.map((ct) => ({
+            id: ct.tag.id,
+            name: ct.tag.name,
+            label: ct.tag.name,
+            color: ct.tag.color,
+          })),
+        };
+        const { contactTags: _removed, ...restContact } = formatted;
+        return restContact;
+      })()
+    : undefined;
 
-  const formattedContact = {
-    ...contact,
-    tags: contact.contactTags.map((ct) => ct.tag),
+  return {
+    id: chat.id,
+    teamId: chat.teamId,
+    remoteJid: chat.remoteJid,
+    instanceId: chat.instanceId,
+    name: chat.name,
+    pushName: chat.pushName,
+    profilePicUrl: chat.profilePicUrl,
+    lastMessage: chat.lastMessageText,
+    lastMessageText: chat.lastMessageText,
+    lastMessageTimestamp: chat.lastMessageTimestamp
+      ? chat.lastMessageTimestamp.toISOString()
+      : null,
+    lastCustomerInteraction: chat.lastCustomerInteraction
+      ? chat.lastCustomerInteraction.toISOString()
+      : null,
+    lastMessageFromMe: chat.lastMessageFromMe,
+    lastMessageStatus: chat.lastMessageStatus,
+    unreadCount: chat.unreadCount ?? 0,
+    isPinned: chat.isPinned ?? false,
+    isArchived: chat.isArchived ?? false,
+    contact: formattedContact,
   };
-
-  const { contactTags: _removed, ...restContact } = formattedContact;
-  return { ...chat, contact: restContact };
 }
 
 export async function getTeamChatsForInbox(

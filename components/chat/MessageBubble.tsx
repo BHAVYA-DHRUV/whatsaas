@@ -67,7 +67,7 @@ export function MessageBubble({
         </a>
       );
     }
-    return <p className="whitespace-pre-wrap break-words text-sm">{msg.text}</p>;
+    return <p className="whitespace-pre-wrap wrap-break-word text-sm">{msg.text}</p>;
   };
 
   return (

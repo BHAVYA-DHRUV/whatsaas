@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import type { QuickReply } from './types';
@@ -21,6 +22,9 @@ export function QuickRepliesModal({ open, onOpenChange, replies = [] }: Props) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Quick replies</DialogTitle>
+          <DialogDescription>
+            View and manage your quick reply shortcuts for faster messaging.
+          </DialogDescription>
         </DialogHeader>
         <ul className="max-h-80 space-y-2 overflow-y-auto">
           {!replies.length && (

@@ -1,0 +1,3 @@
+{
+  "/api/contacts/[id]/tags/[tagId]/route": "app/api/contacts/[id]/tags/[tagId]/route.js"
+}

@@ -1,0 +1,89 @@
+{
+  "node": {
+    "00d5275fe9c38e58dd392fc9d1b09f60662122d2c3": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "signOut",
+          "filename": "app/[locale]/(login)/actions.ts"
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "app/[locale]/(login)/actions.ts"
+    },
+    "70498fed2276ea7ea74593fc3c1045cc2c14df8422": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "saveAutomation",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "saveAutomation",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    },
+    "60a7f935476e87274a8556fa99fdc033a573f59d39": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "toggleAutomationStatus",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "toggleAutomationStatus",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    },
+    "00201bbff518894f4e15ba713f852e297d30aa85ff": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "getAutomations",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "getAutomations",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    },
+    "4022292dba13268139f83c3024460cd09d2a18043e": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "getAutomation",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "getAutomation",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    },
+    "40a9e0bbaceb085a6755dbd4d848788f556cdbb343": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "deleteAutomation",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "deleteAutomation",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    },
+    "60bf9168378f0f9e375e6058a92081b71ba55427c6": {
+      "workers": {
+        "app/[locale]/(dashboard)/automation/[id]/page": {
+          "moduleId": 239162,
+          "async": false,
+          "exportedName": "createAutomation",
+          "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+        }
+      },
+      "exportedName": "createAutomation",
+      "filename": "app/[locale]/(dashboard)/automation/actions.ts"
+    }
+  },
+  "edge": {}
+}

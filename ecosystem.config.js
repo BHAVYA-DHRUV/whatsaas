@@ -53,6 +53,7 @@ module.exports = {
     worker('retry-worker', 'workers/bullmq/retry-worker.ts', '256M'),
     worker('websocket-worker', 'workers/health-ping.ts', '128M'),
     worker('socket-server', 'workers/socket-server.ts', '256M'),
+    worker('instance-recovery', 'workers/instance-recovery.ts', '256M'),
     // Fallback HTTP cron when Redis unavailable:
     worker('campaign-worker-http', 'workers/campaign-processor.ts', '256M', {
       env_production: { NODE_ENV: 'production', USE_HTTP_CRON: '1' },

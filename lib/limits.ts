@@ -45,7 +45,7 @@ export async function enforceLimit(teamId: number, resource: LimitResource) {
       break;
   }
 
-  if (currentUsage >= limit) {
+  if (limit !== -1 && currentUsage >= limit) {
     throw new Error(`${resourceName} limit reached (${currentUsage}/${limit}). Please upgrade your plan.`);
   }
 }

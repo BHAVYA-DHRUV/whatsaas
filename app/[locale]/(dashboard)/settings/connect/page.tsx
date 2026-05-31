@@ -210,7 +210,7 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
   const defaultTab = showEvoTabs ? 'WHATSAPP-BAILEYS' : showMetaTab ? 'META-CLOUD' : 'WHATSAPP-BAILEYS';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 pt-4">
+    <form onSubmit={handleSubmit} className="pt-4 space-y-6">
         {connectionType !== 'META-CLOUD' && (
           <div className="space-y-2">
             <Label htmlFor="instanceNameFormModal">{t('instance_name_label')}</Label>
@@ -225,14 +225,14 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
                 {showMetaTab && <TabsTrigger value="META-CLOUD">{t('meta_cloud_tab')}</TabsTrigger>}
             </TabsList>
 
-            {showEvoTabs && <TabsContent value="WHATSAPP-BAILEYS" className="space-y-4 pt-4">
+            {showEvoTabs && <TabsContent value="WHATSAPP-BAILEYS" className="pt-4 space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="numberFormModal">{t('whatsapp_number_label')}</Label>
                   <Input id="numberFormModal" value={number} onChange={(e) => setNumber(e.target.value)} placeholder={t('whatsapp_number_placeholder')} disabled={isLoading && !error}/>
                 </div>
 
-                <div className="space-y-3 pt-2">
-                    <Label className="text-sm font-medium text-muted-foreground mb-2 block">{t('preferences_label')}</Label>
+                <div className="pt-2 space-y-3">
+                    <Label className="block mb-2 text-sm font-medium text-muted-foreground">{t('preferences_label')}</Label>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center space-x-2">
                             <Checkbox id="rejectCalls" checked={rejectCalls} onCheckedChange={(c) => setRejectCalls(c as boolean)} />
@@ -254,14 +254,14 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
                 </div>
             </TabsContent>}
 
-            {showEvoTabs && <TabsContent value="WHATSAPP-BUSINESS" className="space-y-4 pt-4">
-                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                    <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            {showEvoTabs && <TabsContent value="WHATSAPP-BUSINESS" className="pt-4 space-y-4">
+                <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800">
+                    <Info className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     <AlertTitle className="text-blue-800 dark:text-blue-300">{t('meta_configuration_title')}</AlertTitle>
-                    <AlertDescription className="text-xs text-blue-700 dark:text-blue-400 mt-1">
+                    <AlertDescription className="mt-1 text-xs text-blue-700 dark:text-blue-400">
                         {t('meta_configuration_desc')}<br/>
-                        <code className="bg-black/10 dark:bg-black/30 px-1 rounded select-all">{process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_URL+'/webhook/meta' || ''}</code><br/>
-                        {t('verify_token_label')} <code className="bg-black/10 dark:bg-black/30 px-1 rounded select-all">{process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN || ''}</code>
+                        <code className="px-1 rounded select-all bg-black/10 dark:bg-black/30">{process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_URL+'/webhook/meta' || ''}</code><br/>
+                        {t('verify_token_label')} <code className="px-1 rounded select-all bg-black/10 dark:bg-black/30">{process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN || ''}</code>
                     </AlertDescription>
                 </Alert>
 
@@ -280,11 +280,11 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
             </TabsContent>}
 
             {showMetaTab && (
-              <TabsContent value="META-CLOUD" className="space-y-4 pt-4">
-                <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
-                    <Globe className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <TabsContent value="META-CLOUD" className="pt-4 space-y-4">
+                <Alert className="border-green-200 bg-green-50 dark:bg-green-900/20 dark:border-green-800">
+                    <Globe className="w-4 h-4 text-green-600 dark:text-green-400" />
                     <AlertTitle className="text-green-800 dark:text-green-300">{t('meta_cloud_title')}</AlertTitle>
-                    <AlertDescription className="text-xs text-green-700 dark:text-green-400 mt-1">
+                    <AlertDescription className="mt-1 text-xs text-green-700 dark:text-green-400">
                         {t('meta_cloud_desc')}
                     </AlertDescription>
                 </Alert>
@@ -297,21 +297,21 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
             )}
         </Tabs>
 
-        <div className="flex justify-end space-x-2 pt-4 border-t">
+        <div className="flex justify-end pt-4 space-x-2 border-t">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>{t('cancel_btn')}</Button>
             {connectionType === 'META-CLOUD' ? (
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <Globe className="h-4 w-4 mr-2"/>}
+                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : <Globe className="w-4 h-4 mr-2"/>}
                 {isLoading ? t('meta_cloud_connecting_btn') : t('meta_cloud_start_btn')}
               </Button>
             ) : (
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : null}
+                {isLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin"/> : null}
                 {isLoading ? t('creating_instance_btn') : t('create_instance_btn')}
               </Button>
             )}
         </div>
-     {error && (<p className="text-destructive text-center mt-4 text-sm bg-destructive/10 p-2 rounded">{error}</p>)}
+     {error && (<p className="p-2 mt-4 text-sm text-center rounded text-destructive bg-destructive/10">{error}</p>)}
     </form>
   );
 }
@@ -551,12 +551,12 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
   };
 
   return (
-    <Card className="w-full border shadow-sm hover:shadow-md transition-all duration-200 bg-card text-card-foreground overflow-hidden group">
+    <Card className="w-full overflow-hidden transition-all duration-200 border shadow-sm hover:shadow-md bg-card text-card-foreground group">
 
       <div className="flex items-center justify-between px-5 pt-5 pb-2">
         <div className="flex items-center gap-2">
             <div className={`relative flex h-2.5 w-2.5 items-center justify-center`}>
-                {isConnected && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>}
+                {isConnected && <span className="absolute inline-flex w-full h-full rounded-full opacity-75 animate-ping bg-emerald-400"></span>}
                 <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isConnected ? 'bg-emerald-500' : (details.status === 'connecting' ? 'bg-amber-500' : 'bg-destructive')}`}></span>
             </div>
             <span className={`text-xs font-medium uppercase tracking-wide ${isConnected ? 'text-emerald-600 dark:text-emerald-400' : (details.status === 'connecting' ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}`}>
@@ -564,12 +564,12 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
             </span>
         </div>
         <Badge variant="outline" className={`text-[10px] font-medium border ${getBadgeStyle()}`}>
-            {isMetaCloud ? <Zap className="h-3 w-3 mr-1"/> : isWaba ? <Globe className="h-3 w-3 mr-1"/> : <Smartphone className="h-3 w-3 mr-1"/>}
+            {isMetaCloud ? <Zap className="w-3 h-3 mr-1"/> : isWaba ? <Globe className="w-3 h-3 mr-1"/> : <Smartphone className="w-3 h-3 mr-1"/>}
             {getBadgeLabel()}
         </Badge>
       </div>
 
-      <CardContent className="px-5 pb-5 pt-2">
+      <CardContent className="px-5 pt-2 pb-5">
         <div className="flex items-start gap-4 mt-2">
           <div className={`p-0.5 rounded-full border-2 ${isConnected ? 'border-emerald-500/50' : 'border-border'}`}>
             <Avatar className="h-14 w-14">
@@ -580,9 +580,9 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
             </Avatar>
           </div>
           
-          <div className="flex-1 min-w-0 flex flex-col justify-center h-14">
-              <h3 className="text-lg font-semibold text-foreground truncate leading-tight" title={displayName}>{displayName}</h3>
-              <div className="flex items-center text-sm text-muted-foreground mt-1">
+          <div className="flex flex-col justify-center flex-1 min-w-0 h-14">
+              <h3 className="text-lg font-semibold leading-tight truncate text-foreground" title={displayName}>{displayName}</h3>
+              <div className="flex items-center mt-1 text-sm text-muted-foreground">
                   <Smartphone className="h-3.5 w-3.5 mr-1.5 opacity-70"/>
                   <span className="font-mono tracking-tight">{ownerNumber}</span>
               </div>
@@ -590,35 +590,38 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
         </div>
       </CardContent>
 
-      <CardFooter className="px-4 py-3 bg-muted/30 border-t flex justify-between items-center gap-2">
-          <div className="flex gap-2 w-full">
+      <CardFooter className="flex items-center justify-between gap-2 px-4 py-3 border-t bg-muted/30">
+          <div className="flex w-full gap-2">
             {!isConnected && !isWaba && !isMetaCloud && (
                 <Dialog open={showQrModal} onOpenChange={setShowQrModal}>
                     <DialogTrigger asChild>
-                        <Button variant="default" size="sm" onClick={fetchQr} disabled={qrLoading || actionLoading !== null} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                        <Button variant="default" size="sm" onClick={fetchQr} disabled={qrLoading || actionLoading !== null} className="flex-1 text-white bg-emerald-600 hover:bg-emerald-700">
                             {qrLoading ? <RefreshCw className="h-3.5 w-3.5 mr-2 animate-spin"/> : <QrCode className="h-3.5 w-3.5 mr-2"/>} 
                             {t('scan_qr_btn')}
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-md p-0 overflow-hidden">
-                        <div className="p-6 pb-2 text-center bg-background">
-                            <h2 className="text-xl font-bold text-foreground">{t('connect_whatsapp_title')}</h2>
-                            <p className="text-sm text-muted-foreground mt-1">{t('connect_whatsapp_desc')}</p>
-                        </div>
-                        <div className="flex flex-col items-center justify-center p-8 bg-muted/30 border-t">
-                            <div className="relative bg-white p-2 rounded-lg border shadow-sm">
-                                {qrLoading && <div className="w-64 h-64 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground"/></div>}
-                                {qrCode && !qrLoading && <img src={qrCode} alt="QR Code" className="w-64 h-64 object-contain"/>}
+                    <DialogContent className="p-0 overflow-hidden sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle className="sr-only">{t('connect_whatsapp_title')}</DialogTitle>
+                      </DialogHeader>
+                      <div className="p-6 pb-2 text-center bg-background">
+                        <h2 className="text-xl font-bold text-foreground">{t('connect_whatsapp_title')}</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">{t('connect_whatsapp_desc')}</p>
+                      </div>
+                        <div className="flex flex-col items-center justify-center p-8 border-t bg-muted/30">
+                            <div className="relative p-2 bg-white border rounded-lg shadow-sm">
+                                {qrLoading && <div className="flex items-center justify-center w-64 h-64"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground"/></div>}
+                                {qrCode && !qrLoading && <img src={qrCode} alt="QR Code" className="object-contain w-64 h-64"/>}
                                 {!qrLoading && !qrCode && (
-                                    <div className="w-64 h-64 flex flex-col items-center justify-center text-center p-4">
-                                        <AlertTitle className="text-destructive mb-2">{t('error_qr_dialog_title')}</AlertTitle>
+                                    <div className="flex flex-col items-center justify-center w-64 h-64 p-4 text-center">
+                                        <AlertTitle className="mb-2 text-destructive">{t('error_qr_dialog_title')}</AlertTitle>
                                         <p className="text-sm text-muted-foreground">{error || t('could_not_load_qr_code_error')}</p>
                                         <Button variant="outline" size="sm" onClick={fetchQr} className="mt-4">{t('try_again_btn')}</Button>
                                     </div>
                                 )}
                             </div>
                             {pairingCode && !qrLoading && (
-                                <div className="mt-4 rounded-md border bg-background px-3 py-2 text-center">
+                                <div className="px-3 py-2 mt-4 text-center border rounded-md bg-background">
                                     <p className="text-xs text-muted-foreground">Pairing code</p>
                                     <p className="font-mono text-sm font-semibold tracking-wider">{pairingCode}</p>
                                 </div>
@@ -636,27 +639,27 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
             {isConnected && !isMetaCloud && (
                 <>
                 {!isWaba && (
-                <Button variant="outline" size="sm" onClick={handleOpenSync} disabled={actionLoading !== null} className="flex-1 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950/30 dark:hover:text-blue-400 dark:hover:border-blue-800 transition-colors">
+                <Button variant="outline" size="sm" onClick={handleOpenSync} disabled={actionLoading !== null} className="flex-1 transition-colors hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 dark:hover:bg-blue-950/30 dark:hover:text-blue-400 dark:hover:border-blue-800">
                     <Download className="h-3.5 w-3.5 mr-2"/> {t('sync_chats.btn')}
                 </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => handleAction('logout')} disabled={actionLoading !== null} className="flex-1 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 dark:hover:border-amber-800 transition-colors">
+                <Button variant="outline" size="sm" onClick={() => handleAction('logout')} disabled={actionLoading !== null} className="flex-1 transition-colors hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200 dark:hover:bg-amber-950/30 dark:hover:text-amber-400 dark:hover:border-amber-800">
                     {actionLoading === 'logout' ? <Loader2 className="h-3.5 w-3.5 animate-spin"/> : <LogOut className="h-3.5 w-3.5 mr-2"/>} {t('logout_btn')}
                 </Button>
                 </>
             )}
 
-            <Button variant="ghost" size="sm" onClick={() => handleAction('delete')} disabled={actionLoading !== null} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-3 shrink-0">
-                {actionLoading === 'delete' ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4"/>}
+            <Button variant="ghost" size="sm" onClick={() => handleAction('delete')} disabled={actionLoading !== null} className="px-3 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0">
+                {actionLoading === 'delete' ? <Loader2 className="w-4 h-4 animate-spin"/> : <Trash2 className="w-4 h-4"/>}
             </Button>
           </div>
       </CardFooter>
 
       <Dialog open={showSyncDialog} onOpenChange={setShowSyncDialog}>
-        <DialogContent className="sm:max-w-[600px] max-h-[85vh] flex flex-col">
+        <DialogContent className="sm:max-w-150 max-h-[85vh] flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Download className="h-5 w-5" />
+              <Download className="w-5 h-5" />
               {t('sync_chats.title')}
             </DialogTitle>
             <DialogDescription>
@@ -665,11 +668,11 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
           </DialogHeader>
 
           {syncLoading ? (
-            <div className="flex-1 flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="flex items-center justify-center flex-1 py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
             </div>
           ) : syncChats.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center py-12 text-muted-foreground">
+            <div className="flex items-center justify-center flex-1 py-12 text-muted-foreground">
               {t('sync_chats.no_chats')}
             </div>
           ) : (
@@ -680,7 +683,7 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
                     key={period}
                     variant={syncPeriod === period ? 'default' : 'outline'}
                     size="sm"
-                    className="h-7 text-xs px-3"
+                    className="px-3 text-xs h-7"
                     onClick={() => setSyncPeriod(period)}
                   >
                     {t(`sync_chats.period_${period}`)}
@@ -701,7 +704,7 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
                   {filteredSyncChats.filter(c => c.alreadyImported).length} {t('sync_chats.already_imported')}
                 </Badge>
               </div>
-              <div className="flex-1 max-h-[400px] overflow-y-auto pr-3">
+              <div className="flex-1 pr-3 overflow-y-auto max-h-100">
                 <div className="space-y-1">
                   {filteredSyncChats.map((chat) => (
                     <div
@@ -722,16 +725,16 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
                       <Avatar className="h-9 w-9 shrink-0">
                         <AvatarImage src={chat.profilePicUrl || undefined} />
                         <AvatarFallback className="text-xs">
-                          {chat.isGroup ? <Users className="h-4 w-4" /> : chat.name?.substring(0, 2).toUpperCase()}
+                          {chat.isGroup ? <Users className="w-4 h-4" /> : chat.name?.substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm font-medium truncate">{chat.name}</span>
-                          {chat.isGroup && <Users className="h-3 w-3 text-muted-foreground shrink-0" />}
+                          {chat.isGroup && <Users className="w-3 h-3 text-muted-foreground shrink-0" />}
                           {chat.alreadyImported && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs truncate text-muted-foreground">
                           {chat.lastMessageText || t('sync_chats.no_message')}
                         </p>
                       </div>
@@ -748,8 +751,8 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
           )}
 
           {syncResult && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg text-sm">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <div className="flex items-center gap-2 p-3 text-sm rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
               {t('sync_chats.result', { imported: syncResult.imported })}
             </div>
           )}
@@ -760,7 +763,7 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
               checked={saveContacts}
               onCheckedChange={(checked) => setSaveContacts(checked === true)}
             />
-            <label htmlFor="save-contacts" className="text-sm text-muted-foreground cursor-pointer">
+            <label htmlFor="save-contacts" className="text-sm cursor-pointer text-muted-foreground">
               {t('sync_chats.save_contacts')}
             </label>
           </div>
@@ -773,7 +776,7 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
               onClick={handleImportChats}
               disabled={selectedSyncJids.size === 0 || isImporting}
             >
-              {isImporting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Download className="h-4 w-4 mr-2" />}
+              {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
               {t('sync_chats.import_btn', { count: selectedSyncJids.size })}
             </Button>
           </DialogFooter>
@@ -812,7 +815,7 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
               {t('cancel_btn')}
             </Button>
             <Button variant="destructive" onClick={handleConfirmDelete} disabled={actionLoading === 'delete'}>
-              {actionLoading === 'delete' ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              {actionLoading === 'delete' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
               {t('delete_instance_dialog.confirm_btn')}
             </Button>
           </DialogFooter>
@@ -827,27 +830,27 @@ export default function ConnectInstancePage() {
   const { data: instanceList, error, isLoading, mutate } = useSWR<InstanceDetailItem[]>(
     '/api/instance/details',
     fetcher,
-    { revalidateOnFocus: true }
+    { revalidateOnFocus: false, revalidateIfStale: true }
   );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   if (isLoading) {
     return (
-        <div className="p-4 md:p-8 space-y-8 max-w-6xl mx-auto">
-             <div className="flex justify-between items-center border-b pb-6">
-                 <div className="h-8 bg-muted rounded w-48 animate-pulse"></div>
-                 <div className="h-10 bg-muted rounded w-32 animate-pulse"></div>
+        <div className="max-w-6xl p-4 mx-auto space-y-8 md:p-8">
+             <div className="flex items-center justify-between pb-6 border-b">
+                 <div className="w-48 h-8 rounded bg-muted animate-pulse"></div>
+                 <div className="w-32 h-10 rounded bg-muted animate-pulse"></div>
             </div>
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {[1, 2, 3].map(i => (
                     <Card key={i} className="h-64 animate-pulse">
-                        <CardHeader><div className="h-6 bg-muted rounded w-1/3"></div></CardHeader>
+                        <CardHeader><div className="w-1/3 h-6 rounded bg-muted"></div></CardHeader>
                         <CardContent className="space-y-4">
                             <div className="flex gap-4">
-                                <div className="h-12 w-12 rounded-full bg-muted"></div>
-                                <div className="space-y-2 flex-1">
-                                    <div className="h-4 bg-muted rounded w-3/4"></div>
-                                    <div className="h-3 bg-muted rounded w-1/2"></div>
+                                <div className="w-12 h-12 rounded-full bg-muted"></div>
+                                <div className="flex-1 space-y-2">
+                                    <div className="w-3/4 h-4 rounded bg-muted"></div>
+                                    <div className="w-1/2 h-3 rounded bg-muted"></div>
                                 </div>
                             </div>
                         </CardContent>
@@ -861,11 +864,11 @@ export default function ConnectInstancePage() {
   if (error) {
     return (
         <div className="flex h-[80vh] flex-col items-center justify-center p-8">
-            <div className="bg-destructive/10 p-4 rounded-full mb-4">
-                <Signal className="h-8 w-8 text-destructive" />
+            <div className="p-4 mb-4 rounded-full bg-destructive/10">
+                <Signal className="w-8 h-8 text-destructive" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">{t('error_loading_instances_title')}</h3>
-            <p className="text-muted-foreground mb-6">{t('error_loading_instances_desc')}</p>
+            <p className="mb-6 text-muted-foreground">{t('error_loading_instances_desc')}</p>
             <Button onClick={() => window.location.reload()} variant="outline">{t('retry_connection_btn')}</Button>
         </div>
     );
@@ -874,20 +877,20 @@ export default function ConnectInstancePage() {
   const hasInstances = instanceList && instanceList.length > 0;
 
   return (
-    <div className="p-4 md:p-8 space-y-8 max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-6">
+    <div className="max-w-6xl p-4 mx-auto space-y-8 md:p-8">
+        <div className="flex flex-col items-start justify-between gap-4 pb-6 border-b sm:flex-row sm:items-center">
              <div>
-                <h1 className="text-3xl font-bold text-foreground tracking-tight">{t('connections_title')}</h1>
-                <p className="text-muted-foreground mt-1">{t('connections_desc')}</p>
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('connections_title')}</h1>
+                <p className="mt-1 text-muted-foreground">{t('connections_desc')}</p>
              </div>
              
              <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
                 <DialogTrigger asChild>
                     <Button size="lg" className="shadow-sm">
-                        <Plus className="h-5 w-5 mr-2"/> {t('add_connection_btn')}
+                        <Plus className="w-5 h-5 mr-2"/> {t('add_connection_btn')}
                     </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px]">
+                <DialogContent className="sm:max-w-137.5">
                     <DialogHeader>
                         <DialogTitle className="text-xl">{t('connect_new_instance_title')}</DialogTitle>
                         <DialogDescription>
@@ -903,22 +906,22 @@ export default function ConnectInstancePage() {
         </div>
 
         {hasInstances ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {instanceList.map((instance) => (
                     <InstanceCard key={instance.dbId} details={instance} mutateDetails={mutate} allInstances={instanceList} />
                 ))}
             </div>
         ) : (
-             <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-border rounded-xl bg-muted/10">
-                 <div className="bg-background p-4 rounded-full shadow-sm mb-4">
-                    <Zap className="h-8 w-8 text-primary" />
+             <div className="flex flex-col items-center justify-center px-4 py-20 text-center border-2 border-dashed border-border rounded-xl bg-muted/10">
+                 <div className="p-4 mb-4 rounded-full shadow-sm bg-background">
+                    <Zap className="w-8 h-8 text-primary" />
                  </div>
                  <h3 className="text-xl font-semibold text-foreground">{t('no_connections_yet_title')}</h3>
-                 <p className="text-muted-foreground max-w-md mt-2 mb-8">
+                 <p className="max-w-md mt-2 mb-8 text-muted-foreground">
                     {t('no_connections_yet_desc')}
                  </p>
                  <Button onClick={() => setIsAddModalOpen(true)} size="lg">
-                     <Plus className="h-5 w-5 mr-2"/> {t('connect_first_instance_btn')}
+                     <Plus className="w-5 h-5 mr-2"/> {t('connect_first_instance_btn')}
                  </Button>
              </div>
         )}

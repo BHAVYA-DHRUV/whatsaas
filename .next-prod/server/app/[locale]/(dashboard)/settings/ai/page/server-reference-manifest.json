@@ -1,0 +1,89 @@
+{
+  "node": {
+    "00d5275fe9c38e58dd392fc9d1b09f60662122d2c3": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "signOut",
+          "filename": "app/[locale]/(login)/actions.ts"
+        }
+      },
+      "exportedName": "signOut",
+      "filename": "app/[locale]/(login)/actions.ts"
+    },
+    "00fe9e9cacac025a7aaef3b04919fd47439f45a0a6": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "getAiConfig",
+          "filename": "app/[locale]/(dashboard)/settings/ai/actions.ts"
+        }
+      },
+      "exportedName": "getAiConfig",
+      "filename": "app/[locale]/(dashboard)/settings/ai/actions.ts"
+    },
+    "6023859fbd8c21cf3744c517b9c7c7a713b9837d19": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "saveAiConfig",
+          "filename": "app/[locale]/(dashboard)/settings/ai/actions.ts"
+        }
+      },
+      "exportedName": "saveAiConfig",
+      "filename": "app/[locale]/(dashboard)/settings/ai/actions.ts"
+    },
+    "00ea746c04001598cc06b4fc5cf2a66988b22578b7": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "getAiTools",
+          "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+        }
+      },
+      "exportedName": "getAiTools",
+      "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+    },
+    "402f1bd13d04b8b750fed8c969a860816f077e82d2": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "createAiTool",
+          "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+        }
+      },
+      "exportedName": "createAiTool",
+      "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+    },
+    "607ef56a7efcd3b3ab6d7cc17e38bbf5f10c64ee17": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "updateAiTool",
+          "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+        }
+      },
+      "exportedName": "updateAiTool",
+      "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+    },
+    "4017eaf52ef9d8434d24d00e751579235a104a86a8": {
+      "workers": {
+        "app/[locale]/(dashboard)/settings/ai/page": {
+          "moduleId": 59896,
+          "async": false,
+          "exportedName": "deleteAiTool",
+          "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+        }
+      },
+      "exportedName": "deleteAiTool",
+      "filename": "app/[locale]/(dashboard)/settings/ai/tools-actions.ts"
+    }
+  },
+  "edge": {}
+}

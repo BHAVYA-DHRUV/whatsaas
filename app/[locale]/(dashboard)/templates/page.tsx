@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import {
     Dialog,
     DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import {
     Select,
@@ -47,10 +49,10 @@ type InstanceItem = {
 function StatusBadge({ status }: { status: string }) {
     const t = useTranslations('Templates');
     const s = status.toUpperCase();
-    if (s === 'APPROVED') return <Badge className="bg-primary/10 text-primary hover:bg-primary/10 border-primary/20 gap-1"><CheckCircle2 className="h-3 w-3" /> {t('status_approved')}</Badge>;
-    if (s === 'REJECTED') return <Badge className="bg-destructive/10 text-destructive hover:bg-destructive/10 border-destructive/20 gap-1"><XCircle className="h-3 w-3" /> {t('status_rejected')}</Badge>;
-    if (s === 'PENDING') return <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100 border-yellow-200 gap-1"><Clock className="h-3 w-3" /> {t('status_pending')}</Badge>;
-    return <Badge variant="outline" className="gap-1"><AlertTriangle className="h-3 w-3" /> {status}</Badge>;
+    if (s === 'APPROVED') return <Badge className="gap-1 bg-primary/10 text-primary hover:bg-primary/10 border-primary/20"><CheckCircle2 className="w-3 h-3" /> {t('status_approved')}</Badge>;
+    if (s === 'REJECTED') return <Badge className="gap-1 bg-destructive/10 text-destructive hover:bg-destructive/10 border-destructive/20"><XCircle className="w-3 h-3" /> {t('status_rejected')}</Badge>;
+    if (s === 'PENDING') return <Badge className="gap-1 text-yellow-700 bg-yellow-100 border-yellow-200 hover:bg-yellow-100"><Clock className="w-3 h-3" /> {t('status_pending')}</Badge>;
+    return <Badge variant="outline" className="gap-1"><AlertTriangle className="w-3 h-3" /> {status}</Badge>;
 }
 
 function CategoryBadge({ category }: { category: string }) {
@@ -108,15 +110,15 @@ export default function TemplatesPage() {
     };
 
     if (loadingInstances) {
-        return <div className="flex justify-center items-center h-full"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>;
+        return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground" /></div>;
     }
 
     if (wabaInstances.length === 0) {
         return (
             <div className="flex flex-col items-center justify-center h-full p-6">
-                <Smartphone className="h-16 w-16 text-muted mb-4" />
+                <Smartphone className="w-16 h-16 mb-4 text-muted" />
                 <h2 className="text-xl font-semibold text-foreground">{t('no_waba_instance_connected')}</h2>
-                <p className="text-muted-foreground mb-6 text-center max-w-md">
+                <p className="max-w-md mb-6 text-center text-muted-foreground">
                     {t('connect_waba_desc')}
                 </p>
                 <Link href="/settings/connect">
@@ -132,15 +134,15 @@ export default function TemplatesPage() {
     ) || [];
 
     return (
-        <div className="flex flex-col h-full bg-muted p-6 overflow-hidden">
-            <header className="flex justify-between items-center mb-6 shrink-0">
+        <div className="flex flex-col h-full p-6 overflow-hidden bg-muted">
+            <header className="flex items-center justify-between mb-6 shrink-0">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">{t('message_templates_title')}</h1>
                     <p className="text-sm text-muted-foreground">{t('message_templates_desc')}</p>
                 </div>
                 <div className="flex items-center gap-3">
                     <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
-                        <SelectTrigger className="w-[200px] bg-background">
+                        <SelectTrigger className="w-50 bg-background">
                             <SelectValue placeholder={t('select_instance_placeholder')} />
                         </SelectTrigger>
                         <SelectContent>
@@ -159,7 +161,7 @@ export default function TemplatesPage() {
                     {featureData?.hasAccess && (
                         <Link href={`/templates/new`}>
                             <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" disabled={!selectedInstanceId}>
-                                <Plus className="h-4 w-4 mr-2" /> {t('create_template_btn')}
+                                <Plus className="w-4 h-4 mr-2" /> {t('create_template_btn')}
                             </Button>
                         </Link>
                     )}
@@ -168,7 +170,7 @@ export default function TemplatesPage() {
 
             <div className="flex items-center gap-4 mb-4 shrink-0">
                 <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute w-4 h-4 -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
                     <Input 
                         placeholder={t('search_templates_placeholder')}
                         className="pl-10 bg-background"
@@ -178,8 +180,8 @@ export default function TemplatesPage() {
                 </div>
             </div>
 
-            <div className="flex-1 bg-background rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
-                <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/50 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="flex flex-col flex-1 overflow-hidden border shadow-sm bg-background rounded-xl border-border">
+                <div className="grid grid-cols-12 gap-4 p-4 text-xs font-semibold tracking-wider uppercase border-b bg-muted/50 text-muted-foreground">
                     <div className="col-span-4">{t('template_name_header')}</div>
                     <div className="col-span-2">{t('category_header')}</div>
                     <div className="col-span-2">{t('language_header')}</div>
@@ -189,19 +191,19 @@ export default function TemplatesPage() {
 
                 <div className="flex-1 overflow-y-auto">
                     {loadingTemplates ? (
-                        <div className="flex justify-center items-center h-40">
-                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        <div className="flex items-center justify-center h-40">
+                            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
                         </div>
                     ) : filteredTemplates.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                            <LayoutTemplate className="h-12 w-12 mb-2 opacity-20" />
+                            <LayoutTemplate className="w-12 h-12 mb-2 opacity-20" />
                             <p>{t('no_templates_found')}</p>
-                            <p className="text-sm mt-1">{t('sync_or_create_new')}</p>
+                            <p className="mt-1 text-sm">{t('sync_or_create_new')}</p>
                         </div>
                     ) : (
                         filteredTemplates.map(tpl => (
-                            <div key={tpl.id} className="grid grid-cols-12 gap-4 p-4 border-b last:border-0 hover:bg-muted transition-colors items-center group">
-                                <div className="col-span-4 font-medium text-foreground truncate" title={tpl.name}>
+                            <div key={tpl.id} className="grid items-center grid-cols-12 gap-4 p-4 transition-colors border-b last:border-0 hover:bg-muted group">
+                                <div className="col-span-4 font-medium truncate text-foreground" title={tpl.name}>
                                     {tpl.name}
                                 </div>
                                 <div className="col-span-2">
@@ -213,9 +215,9 @@ export default function TemplatesPage() {
                                 <div className="col-span-2">
                                     <StatusBadge status={tpl.status} />
                                 </div>
-                                <div className="col-span-2 flex justify-end gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" onClick={() => handleView(tpl)} title={t('view_preview_title')}>
-                                        <Eye className="h-4 w-4" />
+                                <div className="flex justify-end col-span-2 gap-2 transition-opacity opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-muted-foreground hover:text-primary" onClick={() => handleView(tpl)} title={t('view_preview_title')}>
+                                        <Eye className="w-4 h-4" />
                                     </Button>
                                 </div>
                             </div>
@@ -225,18 +227,21 @@ export default function TemplatesPage() {
             </div>
 
             <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-                <DialogContent className="sm:max-w-[400px] p-0 bg-transparent border-none shadow-none flex justify-center items-center">
-                    {selectedTemplate && (
-                        <div className="transform scale-90 sm:scale-100 transition-transform">
-                            <WhatsAppPreview data={selectedTemplate.components} />
-                            <div className="mt-4 text-center">
-                                <Badge variant="outline" className="bg-background/90 backdrop-blur text-foreground border-none shadow-sm">
-                                    {selectedTemplate.name} ({selectedTemplate.language})
-                                </Badge>
+                <DialogContent className="flex items-center justify-center p-0 bg-transparent border-none shadow-none sm:max-w-100">
+                        <DialogHeader>
+                            <DialogTitle className="sr-only">Template preview</DialogTitle>
+                        </DialogHeader>
+                        {selectedTemplate && (
+                            <div className="transition-transform transform scale-90 sm:scale-100">
+                                <WhatsAppPreview data={selectedTemplate.components} />
+                                <div className="mt-4 text-center">
+                                    <Badge variant="outline" className="border-none shadow-sm bg-background/90 backdrop-blur text-foreground">
+                                        {selectedTemplate.name} ({selectedTemplate.language})
+                                    </Badge>
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </DialogContent>
+                        )}
+                    </DialogContent>
             </Dialog>
         </div>
     );

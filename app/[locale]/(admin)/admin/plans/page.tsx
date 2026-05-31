@@ -14,7 +14,11 @@ import {
 } from '@/components/ui/table';
 
 function BooleanIcon({ value }: { value: boolean }) {
-  return value ? <Check className="h-4 w-4 text-green-500" /> : <X className="h-4 w-4 text-muted-foreground" />;
+  return value ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-muted-foreground" />;
+}
+
+function formatLimit(value: number) {
+  return value === -1 ? 'Unlimited' : value.toString();
 }
 
 export default async function AdminPlansPage() {
@@ -26,7 +30,7 @@ export default async function AdminPlansPage() {
         <h1 className="text-2xl font-bold">Plans & Features</h1>
         <Link href="/admin/plans/new">
           <Button>
-            <Plus className="mr-2 h-4 w-4" /> Create Plan
+            <Plus className="w-4 h-4 mr-2" /> Create Plan
           </Button>
         </Link>
       </div>
@@ -54,14 +58,14 @@ export default async function AdminPlansPage() {
                     {plan.name}
                     <div className="text-xs text-muted-foreground">{plan.stripeProductId || 'Custom'}</div>
                   </TableCell>
-                  <TableCell>{plan.maxUsers}</TableCell>
-                  <TableCell>{plan.maxInstances}</TableCell>
+                  <TableCell>{formatLimit(plan.maxUsers)}</TableCell>
+                  <TableCell>{formatLimit(plan.maxInstances)}</TableCell>
                   <TableCell><BooleanIcon value={plan.isAiEnabled} /></TableCell>
                   <TableCell><BooleanIcon value={plan.isFlowBuilderEnabled} /></TableCell>
-                  <TableCell className="text-right flex justify-end gap-2">
+                  <TableCell className="flex justify-end gap-2 text-right">
                     <Link href={`/admin/plans/${plan.id}`}>
                       <Button variant="ghost" size="icon">
-                        <Pencil className="h-4 w-4" />
+                        <Pencil className="w-4 h-4" />
                       </Button>
                     </Link>
                     <DeletePlanButton id={plan.id} />

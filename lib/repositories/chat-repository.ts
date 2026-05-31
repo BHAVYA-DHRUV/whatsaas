@@ -4,7 +4,7 @@ import { and, desc, eq, isNotNull } from 'drizzle-orm';
 
 export type ListChatsOptions = {
   teamId: number;
-  scope?: 'kanban';
+  scope?: 'kanban' | 'archived';
   limit?: number;
 };
 
@@ -12,13 +12,22 @@ export async function listChatsForTeam({ teamId, scope, limit }: ListChatsOption
   const resolvedLimit = limit ?? (scope === 'kanban' ? 500 : 200);
   const whereConditions = [eq(chats.teamId, teamId)];
 
-  if (scope !== 'kanban') {
-    whereConditions.push(isNotNull(chats.lastMessageTimestamp));
+  if (scope === 'archived') {
+    whereConditions.push(eq(chats.isArchived, true));
+  } else {
+    whereConditions.push(eq(chats.isArchived, false));
+    if (scope !== 'kanban') {
+      whereConditions.push(isNotNull(chats.lastMessageTimestamp));
+    }
   }
 
   return db.query.chats.findMany({
     where: and(...whereConditions),
-    orderBy: [desc(chats.lastMessageTimestamp)],
+    orderBy: [
+      desc(chats.isPinned),
+      desc(chats.pinnedAt),
+      desc(chats.lastMessageTimestamp),
+    ],
     limit: resolvedLimit,
     with: {
       contact: {

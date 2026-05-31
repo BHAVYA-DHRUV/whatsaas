@@ -64,28 +64,65 @@ function isValidRoomName(roomName: unknown): roomName is string {
 }
 
 let redisSubscriber: IORedis | null = null;
+let redisConnected = false;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 10;
+const BASE_RECONNECT_DELAY_MS = 1000;
 
-if (REDIS_URL) {
+function setupRedisSubscriber() {
+  if (!REDIS_URL) {
+    logger.warn('[socket-server] REDIS_URL is not configured. Socket server started without Redis pub/sub.');
+    return;
+  }
+
   redisSubscriber = new IORedis(REDIS_URL, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: (times) => {
+      if (times > MAX_RECONNECT_ATTEMPTS) {
+        logger.error('[socket-server] Max Redis reconnection attempts reached. Giving up.');
+        return null;
+      }
+      const delay = Math.min(BASE_RECONNECT_DELAY_MS * Math.pow(2, times), 30000);
+      logger.info(`[socket-server] Redis reconnection attempt ${times} in ${delay}ms`);
+      return delay;
+    },
   });
 
   redisSubscriber.on('connect', () => {
+    redisConnected = true;
+    reconnectAttempts = 0;
     logger.info('[socket-server] Connected to Redis subscriber channel');
   });
 
-  redisSubscriber.on('error', (err) => {
-    logger.error(`[socket-server] Redis subscriber error: ${err.message}`);
+  redisSubscriber.on('ready', () => {
+    redisConnected = true;
+    reconnectAttempts = 0;
+    logger.info('[socket-server] Redis subscriber ready');
+    
+    redisSubscriber!.subscribe(REDIS_CHANNEL, (err, count) => {
+      if (err) {
+        logger.error(`[socket-server] Failed to subscribe to ${REDIS_CHANNEL}: ${err.message}`);
+        return;
+      }
+      logger.info(`[socket-server] Subscribed to ${count} Redis channel(s)`);
+    });
   });
 
-  redisSubscriber.subscribe(REDIS_CHANNEL, (err, count) => {
-    if (err) {
-      logger.error(`[socket-server] Failed to subscribe to ${REDIS_CHANNEL}: ${err.message}`);
-      return;
-    }
+  redisSubscriber.on('error', (err) => {
+    redisConnected = false;
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    logger.error(`[socket-server] Redis subscriber error: ${errorMessage}`);
+  });
 
-    logger.info(`[socket-server] Subscribed to ${count} Redis channel(s)`);
+  redisSubscriber.on('close', () => {
+    redisConnected = false;
+    logger.warn('[socket-server] Redis subscriber connection closed');
+  });
+
+  redisSubscriber.on('reconnecting', (delay: number) => {
+    reconnectAttempts++;
+    logger.info(`[socket-server] Redis subscriber reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
   });
 
   redisSubscriber.on('message', (channel, message) => {
@@ -109,9 +146,9 @@ if (REDIS_URL) {
       logger.error(`[socket-server] Failed to broadcast pub/sub message: ${message}`);
     }
   });
-} else {
-  logger.warn('[socket-server] REDIS_URL is not configured. Socket server started without Redis pub/sub.');
 }
+
+setupRedisSubscriber();
 
 io.on('connection', (socket) => {
   logger.info(`[socket-server] Client connected: socketId=${socket.id}`);
@@ -135,12 +172,31 @@ io.on('connection', (socket) => {
   });
 });
 
-app.get('/health', (_req, res) => {
+app.get('/health', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  
   res.json({
     status: 'ok',
     socketConnections: io.sockets.sockets.size,
-    redis: redisSubscriber ? 'connected' : 'disabled',
+    redis: redisConnected ? 'connected' : 'disabled',
   });
+});
+
+app.options('/health', (req, res) => {
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.status(204).end();
 });
 
 httpServer.listen(PORT, () => {

@@ -28,4 +28,8 @@ CREATE INDEX IF NOT EXISTS "chats_team_id_updated_idx" ON "chats" ("team_id", "l
 CREATE INDEX IF NOT EXISTS "team_members_team_id_idx" ON "team_members" ("team_id");
 CREATE INDEX IF NOT EXISTS "team_members_user_id_idx" ON "team_members" ("user_id");
 
+ALTER TABLE "chats" ADD COLUMN IF NOT EXISTS "is_pinned" boolean NOT NULL DEFAULT false;
+ALTER TABLE "chats" ADD COLUMN IF NOT EXISTS "is_archived" boolean NOT NULL DEFAULT false;
+ALTER TABLE "chats" ADD COLUMN IF NOT EXISTS "pinned_at" timestamp;
+
 COMMIT;

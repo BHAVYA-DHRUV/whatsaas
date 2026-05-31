@@ -15,6 +15,12 @@ function getRedisPublisher(): IORedis | null {
     redisPublisher = new IORedis(url, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      lazyConnect: true,
+      connectTimeout: 3000,
+      retryStrategy: (times: number) => (times > 2 ? null : Math.min(times * 200, 600)),
+    });
+    redisPublisher.on('error', () => {
+      /* optional pub/sub — Pusher path still works */
     });
     return redisPublisher;
   } catch (err: any) {
@@ -74,11 +80,20 @@ function createPusher(): PusherLike {
 
   return {
     trigger: async (channel, event, data) => {
-      try {
-        await pusher.trigger(channel, event, data);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'unknown';
-        console.error('[pusher-server] Pusher trigger failed:', msg);
+      // Retry a couple of times for transient failures
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await pusher.trigger(channel, event, data);
+          break;
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'unknown';
+          console.error(`[pusher-server] Pusher trigger failed (attempt ${attempt + 1}):`, msg);
+          if (attempt === 2) {
+            // last attempt failed, continue to next steps
+            break;
+          }
+          await new Promise((r) => setTimeout(r, 100 * (attempt + 1)));
+        }
       }
 
       const pub = getRedisPublisher();

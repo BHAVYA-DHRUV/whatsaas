@@ -52,7 +52,7 @@
 //   return (
 //     <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
 //       <DropdownMenuTrigger>
-//         <Avatar className="cursor-pointer size-9 border border-border">
+//         <Avatar className="border cursor-pointer size-9 border-border">
 //           <AvatarImage alt={user.name || ''} />
 //           <AvatarFallback className="bg-primary/10 text-primary">
 //             {user.email
@@ -62,23 +62,23 @@
 //           </AvatarFallback>
 //         </Avatar>
 //       </DropdownMenuTrigger>
-//       <DropdownMenuContent align="end" className="flex flex-col gap-1 w-48">
+//       <DropdownMenuContent align="end" className="flex flex-col w-48 gap-1">
 //         <DropdownMenuItem className="cursor-pointer">
-//           <Link href="/dashboard" className="flex w-full items-center">
-//             <MessageCircle className="mr-2 h-4 w-4" />
+//           <Link href="/dashboard" className="flex items-center w-full">
+//             <MessageCircle className="w-4 h-4 mr-2" />
 //             <span>Dashboard</span>
 //           </Link>
 //         </DropdownMenuItem>
 //         <DropdownMenuItem className="cursor-pointer">
-//           <Link href="/settings" className="flex w-full items-center">
-//             <Settings className="mr-2 h-4 w-4" />
+//           <Link href="/settings" className="flex items-center w-full">
+//             <Settings className="w-4 h-4 mr-2" />
 //             <span>Settings</span>
 //           </Link>
 //         </DropdownMenuItem>
 //         <form action={handleSignOut} className="w-full">
 //           <button type="submit" className="flex w-full">
-//             <DropdownMenuItem className="w-full flex-1 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
-//               <LogOut className="mr-2 h-4 w-4" />
+//             <DropdownMenuItem className="flex-1 w-full cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10">
+//               <LogOut className="w-4 h-4 mr-2" />
 //               <span>Sign out</span>
 //             </DropdownMenuItem>
 //           </button>
@@ -92,29 +92,29 @@
 //   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
 //   return (
-//     <header className="border-b border-border bg-background sticky top-0 z-50">
-//       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+//     <header className="sticky top-0 z-50 border-b border-border bg-background">
+//       <div className="flex items-center justify-between px-4 py-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
 //         <Link href="/" className="flex items-center">
 //           <Logo />
 //         </Link>
 
-//         <div className="hidden md:flex items-center space-x-4">
+//         <div className="items-center hidden space-x-4 md:flex">
 //           <ThemeSwitcher />
-//           <Suspense fallback={<div className="h-9 w-9 bg-muted rounded-full animate-pulse" />}>
+//           <Suspense fallback={<div className="rounded-full h-9 w-9 bg-muted animate-pulse" />}>
 //             <UserMenu />
 //           </Suspense>
 //         </div>
 
-//         <div className="md:hidden flex items-center gap-4">
+//         <div className="flex items-center gap-4 md:hidden">
 //           <ThemeSwitcher />
 //           <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-//             {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+//             {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
 //           </Button>
 //         </div>
 //       </div>
 
 //       {isMobileMenuOpen && (
-//         <div className="md:hidden border-t border-border bg-background p-4 flex flex-col gap-4">
+//         <div className="flex flex-col gap-4 p-4 border-t md:hidden border-border bg-background">
 //           <Suspense>
 //             <UserMenu />
 //           </Suspense>
@@ -149,11 +149,11 @@
 //   const showTopbar = !path.includes('/inbox') && !path.includes('/dashboard/chat');
 
 //   return (
-//     <div className="flex h-screen bg-muted overflow-hidden">
+//     <div className="flex h-screen overflow-hidden bg-muted">
 //       <Sidebar />
-//       <div className="flex flex-1 flex-col h-full overflow-hidden relative">
+//       <div className="relative flex flex-col flex-1 h-full overflow-hidden">
 //         {showTopbar && <EnterpriseTopbar />}
-//         <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
+//         <main className="flex flex-col flex-1 min-h-0 overflow-hidden">{children}</main>
 //       </div>
 //     </div>
 //   );
@@ -167,6 +167,7 @@
 import { useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { LogOut, Settings, LayoutDashboard, Menu, X, User2 } from 'lucide-react';
+import { ConnectionStatus } from '@/components/connection-status';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -262,45 +263,45 @@ function UserMenu() {
   return (
     <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
       <DropdownMenuTrigger asChild>
-        <Avatar className="cursor-pointer size-9 border border-border hover:ring-2 hover:ring-primary/30 transition-all">
+        <Avatar className="transition-all border cursor-pointer size-9 border-border hover:ring-2 hover:ring-primary/30">
           <AvatarImage alt={user.name || user.email} />
-          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-sm">
+          <AvatarFallback className="text-sm font-semibold bg-primary/10 text-primary">
             {initials}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52" sideOffset={8}>
         {/* User info header */}
-        <div className="px-2 py-2 border-b border-border mb-1">
-          <p className="text-xs font-medium text-foreground truncate">{user.name || user.email}</p>
+        <div className="px-2 py-2 mb-1 border-b border-border">
+          <p className="text-xs font-medium truncate text-foreground">{user.name || user.email}</p>
           {user.name && (
-            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <p className="text-xs truncate text-muted-foreground">{user.email}</p>
           )}
         </div>
 
         <DropdownMenuItem
-          className="cursor-pointer gap-2"
+          className="gap-2 cursor-pointer"
           onSelect={handleDashboard}
         >
-          <LayoutDashboard className="h-4 w-4 text-muted-foreground" />
+          <LayoutDashboard className="w-4 h-4 text-muted-foreground" />
           <span>Dashboard</span>
         </DropdownMenuItem>
 
         <DropdownMenuItem
-          className="cursor-pointer gap-2"
+          className="gap-2 cursor-pointer"
           onSelect={handleSettings}
         >
-          <Settings className="h-4 w-4 text-muted-foreground" />
+          <Settings className="w-4 h-4 text-muted-foreground" />
           <span>Settings</span>
         </DropdownMenuItem>
 
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          className="cursor-pointer gap-2 text-destructive focus:text-destructive focus:bg-destructive/10"
+          className="gap-2 cursor-pointer text-destructive focus:text-destructive focus:bg-destructive/10"
           onSelect={handleSignOut}
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="w-4 h-4" />
           <span>Sign out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -312,29 +313,29 @@ function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <header className="border-b border-border bg-background sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+    <header className="sticky top-0 z-50 border-b border-border bg-background">
+      <div className="flex items-center justify-between px-4 py-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center">
           <Logo />
         </Link>
 
-        <div className="hidden md:flex items-center space-x-4">
+        <div className="items-center hidden space-x-4 md:flex">
           <ThemeSwitcher />
-          <Suspense fallback={<div className="h-9 w-9 bg-muted rounded-full animate-pulse" />}>
+          <Suspense fallback={<div className="rounded-full h-9 w-9 bg-muted animate-pulse" />}>
             <UserMenu />
           </Suspense>
         </div>
 
-        <div className="md:hidden flex items-center gap-4">
+        <div className="flex items-center gap-4 md:hidden">
           <ThemeSwitcher />
           <Button variant="ghost" size="icon" onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}>
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </Button>
         </div>
       </div>
 
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-background p-4 flex flex-col gap-4">
+        <div className="flex flex-col gap-4 p-4 border-t md:hidden border-border bg-background">
           <Suspense>
             <UserMenu />
           </Suspense>
@@ -369,11 +370,12 @@ export function DashboardShell({ children, path }: DashboardShellProps) {
   const showTopbar = !path.includes('/inbox') && !path.includes('/dashboard/chat');
 
   return (
-    <div className="flex h-screen bg-muted overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-muted">
       <Sidebar />
-      <div className="flex flex-1 flex-col h-full overflow-hidden relative">
+      <div className="relative flex flex-col flex-1 h-full overflow-hidden">
+        <ConnectionStatus />
         {showTopbar && <EnterpriseTopbar />}
-        <main className="flex-1 flex flex-col min-h-0 overflow-hidden">{children}</main>
+        <main className="flex flex-col flex-1 min-h-0 overflow-hidden">{children}</main>
       </div>
     </div>
   );

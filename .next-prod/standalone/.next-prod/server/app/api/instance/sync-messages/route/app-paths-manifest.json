@@ -1,0 +1,3 @@
+{
+  "/api/instance/sync-messages/route": "app/api/instance/sync-messages/route.js"
+}

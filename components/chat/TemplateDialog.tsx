@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { fetcher } from './utils';
@@ -34,6 +35,9 @@ export function TemplateDialog({ open, onOpenChange, onSendTemplate }: Props) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Send template</DialogTitle>
+          <DialogDescription>
+            Select a template to send to the current chat.
+          </DialogDescription>
         </DialogHeader>
         <div className="max-h-80 space-y-2 overflow-y-auto">
           {!templates?.length && (

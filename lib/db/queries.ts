@@ -1,9 +1,19 @@
 import { unstable_cache } from 'next/cache';
 import { desc, and, eq, isNull, count } from 'drizzle-orm';
+import { db } from './drizzle';
+import { activityLogs, teamMembers, teams, users, plans, contacts, evolutionInstances } from './schema';
+import { cookies, headers } from 'next/headers';
+import { verifyToken } from '@/lib/auth/session';
 
-const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
+const DEFAULT_DB_QUERY_TIMEOUT = Number(process.env.DB_QUERY_TIMEOUT_MS) || 5000;
+
+const queryWithTimeout = <T>(promise: Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT): Promise<T> => {
   return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Database query timed out after ${ms}ms`)), ms);
+    const timer = setTimeout(() => {
+      const err = new Error(`Database query timed out after ${ms}ms`);
+      console.error('[db] query timeout:', err.message);
+      reject(err);
+    }, ms);
 
     promise
       .then((value) => resolve(value))
@@ -11,13 +21,28 @@ const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
       .finally(() => clearTimeout(timer));
   });
 };
-import { db } from './drizzle';
-import { activityLogs, teamMembers, teams, users, plans, contacts, evolutionInstances } from './schema';
-import { cookies, headers } from 'next/headers';
-import { verifyToken } from '@/lib/auth/session';
+
+async function queryWithRetry<T>(operation: () => Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT, retries = 3): Promise<T> {
+  let attempt = 0;
+  let lastErr: any = null;
+  while (attempt <= retries) {
+    try {
+      return await queryWithTimeout(operation(), ms);
+    } catch (err: any) {
+      lastErr = err;
+      attempt += 1;
+      const msg = String(err.message || '').toLowerCase();
+      const retryable = msg.includes('timeout') || msg.includes('connection') || msg.includes('econnrefused') || msg.includes('etimedout');
+      if (attempt > retries || !retryable) break;
+      const backoff = Math.min(1000, 200 * attempt * attempt);
+      console.warn(`[db] query failed (attempt ${attempt}/${retries}), retrying in ${backoff}ms:`, err.message || err);
+      await new Promise((r) => setTimeout(r, backoff));
+    }
+  }
+  throw lastErr;
+}
 
 export async function getUser() {
-  
   try {
     const authHeader = (await headers()).get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -25,20 +50,20 @@ export async function getUser() {
       const sessionData = await verifyToken(token);
       if (sessionData?.user?.id && typeof sessionData.user.id === 'number') {
         if (new Date(sessionData.expires) >= new Date()) {
-          const user = await db
+          const user = await queryWithRetry(() => db
             .select()
             .from(users)
             .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
-            .limit(1);
+            .limit(1)
+          );
           if (user.length > 0) return user[0];
         }
       }
     }
   } catch {
-    
+    // ignore header auth errors and fallback to cookie session
   }
 
-  
   const sessionCookie = (await cookies()).get('session');
   if (!sessionCookie || !sessionCookie.value) {
     return null;
@@ -57,11 +82,12 @@ export async function getUser() {
     return null;
   }
 
-  const user = await db
+  const user = await queryWithRetry(() => db
     .select()
     .from(users)
     .where(and(eq(users.id, sessionData.user.id), isNull(users.deletedAt)))
-    .limit(1);
+    .limit(1)
+  );
 
   if (user.length === 0) {
     return null;
@@ -73,7 +99,7 @@ export async function getUser() {
 const loadPublishedPlans = unstable_cache(
   async () => {
     try {
-      return await queryWithTimeout(db.select().from(plans).orderBy(plans.amount), 2500);
+      return await queryWithRetry(() => db.select().from(plans).orderBy(plans.amount));
     } catch (error) {
       console.error('getPublishedPlans failed (run pnpm db:bootstrap):', error);
       return [];
@@ -88,11 +114,12 @@ export async function getPublishedPlans() {
 }
 
 export async function getTeamByStripeCustomerId(customerId: string) {
-  const result = await db
+  const result = await queryWithRetry(() => db
     .select()
     .from(teams)
     .where(eq(teams.stripeCustomerId, customerId))
-    .limit(1);
+    .limit(1)
+  );
 
   return result.length > 0 ? result[0] : null;
 }
@@ -106,17 +133,18 @@ export async function updateTeamSubscription(
     subscriptionStatus: string;
   }
 ) {
-  await db
+  await queryWithRetry(() => db
     .update(teams)
     .set({
       ...subscriptionData,
       updatedAt: new Date()
     })
-    .where(eq(teams.id, teamId));
+    .where(eq(teams.id, teamId))
+  );
 }
 
 export async function getUserWithTeam(userId: number) {
-  const result = await db
+  const result = await queryWithRetry(() => db
     .select({
       user: users,
       teamId: teamMembers.teamId
@@ -124,32 +152,36 @@ export async function getUserWithTeam(userId: number) {
     .from(users)
     .leftJoin(teamMembers, eq(users.id, teamMembers.userId))
     .where(eq(users.id, userId))
-    .limit(1);
+    .limit(1)
+  );
 
   return result[0];
 }
 
 export async function getTeamMemberCount(teamId: number) {
-  const [result] = await db
+  const [result] = await queryWithRetry(() => db
     .select({ count: count() })
     .from(teamMembers)
-    .where(eq(teamMembers.teamId, teamId));
+    .where(eq(teamMembers.teamId, teamId))
+  );
   return result.count;
 }
 
 export async function getContactCount(teamId: number) {
-  const [result] = await db
+  const [result] = await queryWithRetry(() => db
     .select({ count: count() })
     .from(contacts)
-    .where(eq(contacts.teamId, teamId));
+    .where(eq(contacts.teamId, teamId))
+  );
   return result.count;
 }
 
 export async function getInstanceCount(teamId: number) {
-  const [result] = await db
+  const [result] = await queryWithRetry(() => db
     .select({ count: count() })
     .from(evolutionInstances)
-    .where(eq(evolutionInstances.teamId, teamId));
+    .where(eq(evolutionInstances.teamId, teamId))
+  );
   return result.count;
 }
 
@@ -159,7 +191,7 @@ export async function getActivityLogs() {
     throw new Error('User not authenticated');
   }
 
-  return await db
+  return await queryWithRetry(() => db
     .select({
       id: activityLogs.id,
       action: activityLogs.action,
@@ -171,43 +203,46 @@ export async function getActivityLogs() {
     .leftJoin(users, eq(activityLogs.userId, users.id))
     .where(eq(activityLogs.userId, user.id))
     .orderBy(desc(activityLogs.timestamp))
-    .limit(10);
+    .limit(10)
+  );
 }
 
 export async function getFreePlan() {
-  const result = await db
+  const result = await queryWithRetry(() => db
     .select()
     .from(plans)
     .where(eq(plans.amount, 0))
-    .limit(1);
+    .limit(1)
+  );
 
   return result[0] || null;
 }
 
 /** Creates a default workspace when a user has no team (fixes 401 on /api/* after login). */
 export async function ensureDefaultTeamForUser(userId: number, email: string) {
-  const existing = await db.query.teamMembers.findFirst({
+  const existing = await queryWithRetry(() => db.query.teamMembers.findFirst({
     where: eq(teamMembers.userId, userId),
     with: { team: true },
-  });
+  }));
   if (existing?.team) return existing.team;
 
   const teamName = email.includes('@') ? `${email.split('@')[0]}'s Team` : 'My Team';
-  const [team] = await db.insert(teams).values({ name: teamName }).returning();
+  const [team] = await queryWithRetry(() => db.insert(teams).values({ name: teamName }).returning());
 
   const freePlan = await getFreePlan();
   if (freePlan) {
-    await db
+    await queryWithRetry(() => db
       .update(teams)
       .set({ planId: freePlan.id, planName: freePlan.name, subscriptionStatus: 'active' })
-      .where(eq(teams.id, team.id));
+      .where(eq(teams.id, team.id))
+    );
   }
 
-  await db.insert(teamMembers).values({
+  await queryWithRetry(() => db.insert(teamMembers).values({
     userId,
     teamId: team.id,
     role: 'owner',
-  });
+  }));
 
   return team;
 }
@@ -218,7 +253,7 @@ export async function getTeamForUser() {
     return null;
   }
 
-  const result = await db.query.teamMembers.findFirst({
+  const result = await queryWithRetry(() => db.query.teamMembers.findFirst({
     where: eq(teamMembers.userId, user.id),
     with: {
       team: {
@@ -238,13 +273,13 @@ export async function getTeamForUser() {
         }
       }
     }
-  });
+  }));
 
   if (result?.team) return result.team;
 
   try {
     await ensureDefaultTeamForUser(user.id, user.email);
-    const refreshed = await db.query.teamMembers.findFirst({
+    const refreshed = await queryWithRetry(() => db.query.teamMembers.findFirst({
       where: eq(teamMembers.userId, user.id),
       with: {
         team: {
@@ -260,7 +295,7 @@ export async function getTeamForUser() {
           },
         },
       },
-    });
+    }));
     return refreshed?.team ?? null;
   } catch (error) {
     console.error('ensureDefaultTeamForUser failed:', error);
@@ -272,13 +307,13 @@ export async function getUserMembership() {
   const user = await getUser();
   if (!user) return null;
 
-  const membership = await db.query.teamMembers.findFirst({
+  const membership = await queryWithRetry(() => db.query.teamMembers.findFirst({
     where: eq(teamMembers.userId, user.id),
     columns: {
       role: true,
       permissions: true,
     }
-  });
+  }));
 
   return membership || null;
 }

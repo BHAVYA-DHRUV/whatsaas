@@ -1,5 +1,3 @@
-import 'server-only';
-
 import { db } from '@/lib/db/drizzle';
 import { chats, contacts, messages, automations } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';

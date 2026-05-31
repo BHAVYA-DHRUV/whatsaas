@@ -1,0 +1,17 @@
+{
+  "node": {
+    "6050dadad086cea8b5f6981ee7b80ee83884f58fff": {
+      "workers": {
+        "app/[locale]/(login)/forgot-password/page": {
+          "moduleId": 149036,
+          "async": false,
+          "exportedName": "requestPasswordReset",
+          "filename": "app/[locale]/(login)/password-reset-actions.ts"
+        }
+      },
+      "exportedName": "requestPasswordReset",
+      "filename": "app/[locale]/(login)/password-reset-actions.ts"
+    }
+  },
+  "edge": {}
+}

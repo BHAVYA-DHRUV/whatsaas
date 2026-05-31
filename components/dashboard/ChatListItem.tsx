@@ -1,13 +1,15 @@
 'use client';
 
 import React from 'react';
+import { Pin, BellOff } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { cn } from '@/lib/utils';
 import {
-  MessageCircle,
-  Clock,
-  User2,
-  CheckCheck,
-  BellOff,
-} from 'lucide-react';
+  formatChatListTime,
+  getChatDisplayName,
+  getChatInitials,
+  isContactOnline,
+} from '@/lib/inbox/utils';
 
 export type Agent = {
   id: number;
@@ -24,7 +26,8 @@ export type FunnelStage = {
 
 export type TagData = {
   id: number;
-  label: string;
+  name?: string;
+  label?: string;
   color?: string;
 };
 
@@ -32,39 +35,30 @@ export type Contact = {
   id?: number;
   name?: string;
   phone?: string;
-
   assignedUser?: Agent;
-
   funnelStage?: FunnelStage;
-
   tags?: TagData[];
 };
 
 export type Chat = {
   id: number;
-
   teamId?: number;
-
   remoteJid: string;
-
   instanceId?: number;
-
   name?: string;
-
   pushName?: string;
-
+  profilePicUrl?: string | null;
   lastMessage?: string;
-
-  lastMessageTimestamp?: string;
-
+  lastMessageText?: string | null;
+  lastMessageTimestamp?: string | null;
+  lastCustomerInteraction?: string | null;
   lastMessageFromMe?: boolean;
-
+  lastMessageStatus?: string | null;
   unreadCount?: number;
-
+  isPinned?: boolean;
+  isArchived?: boolean;
   createdAt?: string;
-
   updatedAt?: string;
-
   contact?: Contact;
 };
 
@@ -76,30 +70,12 @@ export type InstanceData = {
 
 type ChatListItemProps = {
   chat: Chat;
-
   isActive?: boolean;
-
   instances?: InstanceData[];
-
   isSelectionMode?: boolean;
-
   isSelected?: boolean;
-
   onSelect?: (chatId: number) => void;
-
-  agents?: Agent[];
-
-  funnelStages?: FunnelStage[];
-
-  tags?: TagData[];
-
-  onContactUpdate?: (
-    updater?: (currentChats: Chat[]) => Chat[]
-  ) => void;
-
   isMuted?: boolean;
-
-  onToggleMute?: () => void;
 };
 
 export function ChatListItem({
@@ -110,131 +86,81 @@ export function ChatListItem({
   onSelect,
   isMuted = false,
 }: ChatListItemProps) {
-  const formattedTime = chat.lastMessageTimestamp
-    ? new Date(chat.lastMessageTimestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-    : '';
+  const displayName = getChatDisplayName(chat);
+  const preview = chat.lastMessage || chat.lastMessageText || 'No messages yet';
+  const formattedTime = formatChatListTime(chat.lastMessageTimestamp);
+  const online = isContactOnline(chat.lastCustomerInteraction);
+  const unread = chat.unreadCount ?? 0;
 
   return (
     <div
       onClick={() => {
-        if (isSelectionMode && onSelect) {
-          onSelect(chat.id);
-        }
+        if (isSelectionMode && onSelect) onSelect(chat.id);
       }}
-      className={`
-        relative flex items-start gap-3 px-4 py-4 border-b cursor-pointer
-        transition-all duration-200
-        hover:bg-muted/60
-        ${
-          isActive
-            ? 'bg-primary/10 border-primary/20'
-            : 'bg-background border-border'
-        }
-        ${isSelected ? 'ring-2 ring-primary/40' : ''}
-      `}
-    >
-      {isSelectionMode && (
-        <div className="flex items-center pt-1">
-          <div
-            className={`
-              w-5 h-5 rounded border flex items-center justify-center
-              ${
-                isSelected
-                  ? 'bg-primary border-primary'
-                  : 'border-muted-foreground'
-              }
-            `}
-          >
-            {isSelected && (
-              <CheckCheck className="w-3 h-3 text-white" />
-            )}
-          </div>
-        </div>
+      className={cn(
+        'group relative flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors duration-150',
+        isActive
+          ? 'bg-primary/8 border-l-[3px] border-l-primary'
+          : 'hover:bg-muted/50 border-l-[3px] border-l-transparent',
+        isSelected && 'ring-2 ring-inset ring-primary/30'
       )}
-
-      <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 shrink-0">
-        <User2 className="w-6 h-6 text-primary" />
+    >
+      <div className="relative shrink-0">
+        <Avatar className={cn('h-12 w-12', isActive && 'ring-2 ring-primary/30')}>
+          <AvatarImage src={chat.profilePicUrl ?? undefined} alt={displayName} className="object-cover" />
+          <AvatarFallback
+            className={cn(
+              'text-xs font-bold',
+              isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {getChatInitials(displayName)}
+          </AvatarFallback>
+        </Avatar>
+        {online && (
+          <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-emerald-500" />
+        )}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h3 className="text-sm font-semibold truncate text-foreground">
-              {chat.name ||
-                chat.pushName ||
-                chat.contact?.name ||
-                chat.remoteJid}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h3 className={cn('truncate text-sm font-semibold', unread > 0 && 'text-foreground')}>
+              {displayName}
             </h3>
-
-            <div className="flex items-center gap-2 mt-1">
-              {chat.contact?.funnelStage && (
-                <span
-                  className="px-2 py-0.5 text-[10px] rounded-full font-medium"
-                  style={{
-                    backgroundColor:
-                      chat.contact.funnelStage.color || '#e5e7eb',
-                    color: '#111827',
-                  }}
-                >
-                  {chat.contact.funnelStage.name}
-                </span>
-              )}
-
-              {isMuted && (
-                <BellOff className="w-3 h-3 text-muted-foreground" />
-              )}
-            </div>
+            {chat.isPinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground rotate-45" />}
+            {isMuted && <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
           </div>
-
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            {formattedTime && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Clock className="w-3 h-3" />
-                {formattedTime}
-              </div>
-            )}
-
-            {!!chat.unreadCount && chat.unreadCount > 0 && (
-              <div className="flex items-center justify-center min-w-[20px] h-5 px-1 text-xs font-bold text-white rounded-full bg-primary">
-                {chat.unreadCount}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-2">
-          <MessageCircle className="w-4 h-4 text-muted-foreground shrink-0" />
-
-          <p className="text-sm truncate text-muted-foreground">
-            {chat.lastMessage || 'No messages yet'}
-          </p>
-        </div>
-
-        {chat.contact?.assignedUser && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            Assigned to:{' '}
-            <span className="font-medium text-foreground">
-              {chat.contact.assignedUser.name}
+          {formattedTime && (
+            <span
+              className={cn(
+                'shrink-0 text-[11px]',
+                unread > 0 ? 'font-semibold text-primary' : 'text-muted-foreground'
+              )}
+            >
+              {formattedTime}
             </span>
-          </div>
-        )}
-
-        {chat.contact?.tags &&
-          chat.contact.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2">
-              {chat.contact.tags.map((tag) => (
-                <span
-                  key={tag.id}
-                  className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-secondary text-secondary-foreground"
-                >
-                  {tag.label}
-                </span>
-              ))}
-            </div>
           )}
+        </div>
+
+        <div className="mt-0.5 flex items-center justify-between gap-2">
+          <p
+            className={cn(
+              'truncate text-xs',
+              unread > 0 ? 'font-medium text-foreground/80' : 'text-muted-foreground'
+            )}
+          >
+            {chat.lastMessageFromMe && !unread ? (
+              <span className="text-muted-foreground">You: </span>
+            ) : null}
+            {preview}
+          </p>
+          {unread > 0 && (
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -242,15 +168,11 @@ export function ChatListItem({
 
 export function ChatListSkeleton() {
   return (
-    <div className="flex items-start gap-3 px-4 py-4 border-b border-border animate-pulse">
-      <div className="w-12 h-12 rounded-full bg-muted" />
-
-      <div className="flex-1">
-        <div className="w-40 h-4 rounded bg-muted" />
-
-        <div className="w-56 h-3 mt-3 rounded bg-muted" />
-
-        <div className="w-20 h-3 mt-3 rounded bg-muted" />
+    <div className="flex animate-pulse items-center gap-3 px-3 py-3">
+      <div className="h-12 w-12 shrink-0 rounded-full bg-muted" />
+      <div className="flex-1 space-y-2">
+        <div className="h-3.5 w-32 rounded bg-muted" />
+        <div className="h-3 w-48 rounded bg-muted" />
       </div>
     </div>
   );

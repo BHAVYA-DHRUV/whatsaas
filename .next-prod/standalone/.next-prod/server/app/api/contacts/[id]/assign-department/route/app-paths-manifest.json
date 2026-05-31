@@ -1,0 +1,3 @@
+{
+  "/api/contacts/[id]/assign-department/route": "app/api/contacts/[id]/assign-department/route.js"
+}

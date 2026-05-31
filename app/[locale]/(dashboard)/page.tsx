@@ -399,9 +399,10 @@ export default async function HomePage() {
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             {plans.map((plan, index) => {
               const isPopular = index === 1;
+              const formatLimit = (value: number) => value === -1 ? 'Unlimited' : value.toLocaleString();
               return (
-                <div 
-                  key={plan.id} 
+                <div
+                  key={plan.id}
                   className={`relative flex flex-col p-8 rounded-2xl border bg-card transition-all duration-300 hover:shadow-xl ${isPopular ? 'border-primary shadow-lg shadow-primary/10 scale-105 z-10' : 'border-border'}`}
                 >
                   {isPopular && (
@@ -415,16 +416,16 @@ export default async function HomePage() {
                     <span className="text-muted-foreground">/{plan.interval === 'month' ? t('pricing.interval_month') : t('pricing.interval_year')}</span>
                   </div>
                   <p className="mb-6 text-sm text-muted-foreground min-h-10">{plan.description || "Perfect for getting started."}</p>
-                  
+
                   <ul className="flex-1 mb-8 space-y-3">
                     <li className="flex items-center gap-3 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.users', {count: plan.maxUsers})}
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.users', {count: formatLimit(plan.maxUsers)})}
                     </li>
                     <li className="flex items-center gap-3 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.connections', {count: plan.maxInstances})}
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.connections', {count: formatLimit(plan.maxInstances)})}
                     </li>
                     <li className="flex items-center gap-3 text-sm">
-                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.contacts', {count: plan.maxContacts.toLocaleString()})}
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" /> {t('pricing.features.contacts', {count: formatLimit(plan.maxContacts)})}
                     </li>
                     {plan.isAiEnabled && (
                         <li className="flex items-center gap-3 text-sm">

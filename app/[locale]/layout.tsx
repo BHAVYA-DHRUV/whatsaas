@@ -5,6 +5,8 @@ import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { locales } from '@/i18n/request';
 import { setRequestLocale } from 'next-intl/server';
+import { ThemeProvider } from '@/components/theme-provider';
+import { Toaster } from 'sonner';
 
 export const viewport: Viewport = {
   maximumScale: 1,
@@ -30,7 +32,7 @@ export default async function LocaleLayout({
 }) {
   const { locale } = await params;
 
-  if (!locales.includes(locale as any)) {
+  if (!locales.includes(locale as (typeof locales)[number])) {
     notFound();
   }
 
@@ -39,14 +41,13 @@ export default async function LocaleLayout({
   const messages = await getMessages();
   
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <body suppressHydrationWarning>
-        <NextIntlClientProvider messages={messages}>
-          <div className="bg-background text-foreground min-h-dvh">
-            {children}
-          </div>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <NextIntlClientProvider messages={messages}>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
+        <div className="bg-background text-foreground min-h-dvh">
+          {children}
+        </div>
+        <Toaster richColors closeButton position="top-right" />
+      </ThemeProvider>
+    </NextIntlClientProvider>
   );
 }
