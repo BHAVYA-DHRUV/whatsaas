@@ -58,18 +58,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const evoChats = await chatsResponse.json();
+    let evoChats = await chatsResponse.json();
 
     const contactNameMap = new Map<string, string>();
     if (Array.isArray(contactsResult)) {
       for (const contact of contactsResult) {
-        const jid = contact.remoteJid;
+        const jid = contact.remoteJid || contact.id;
         if (!jid || !jid.includes('@s.whatsapp.net')) continue;
         const name = contact.pushName || contact.name || contact.verifiedName;
         if (name) {
           contactNameMap.set(jid, name);
         }
       }
+    }
+
+    if (!Array.isArray(evoChats) || evoChats.length === 0) {
+      console.log('[SYNC CHATS] Evolution findChats returned empty. Falling back to findContacts.');
+      evoChats = (Array.isArray(contactsResult) ? contactsResult : []).map((c: any) => ({
+        remoteJid: c.remoteJid || c.id,
+        pushName: c.pushName || c.name || c.verifiedName,
+        profilePicUrl: c.profilePicUrl || c.imgUrl || null,
+        unreadCount: 0,
+        lastMessage: null,
+      }));
     }
 
     const existingChats = await db.query.chats.findMany({

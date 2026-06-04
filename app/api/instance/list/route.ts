@@ -3,6 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { evolutionInstances } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,18 +14,27 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const cacheKey = CacheKeys.teamInstances(team.id);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
+    }
+
     const instances = await db.query.evolutionInstances.findMany({
       where: eq(evolutionInstances.teamId, team.id),
-      columns: { id: true, instanceName: true, displayName: true }
+      columns: { id: true, instanceName: true, displayName: true, integration: true }
     });
 
     const result = instances.map(i => ({
       id: i.id,
       instanceName: i.instanceName,
       displayName: i.displayName || i.instanceName,
+      integration: i.integration,
     }));
 
-    return NextResponse.json(result);
+    await cacheSet(cacheKey, result, CacheTTL.contacts);
+
+    return NextResponse.json(result, { headers: { 'X-Cache': 'MISS' } });
   } catch (error: any) {
     console.error('Error fetching instances:', error.message);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

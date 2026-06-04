@@ -96,7 +96,6 @@ function buildRateLimitConfig(): RateLimitConfig {
   });
 
   if (!parsed.success) {
-    console.error('[rate-limit] Invalid rate-limit configuration:', parsed.error.flatten().fieldErrors);
     return DEFAULT_RATE_LIMITS;
   }
 
@@ -118,7 +117,6 @@ export function validateRateLimitConfig(): RateLimitConfig {
   const parsed = rateLimitConfigSchema.safeParse(config);
 
   if (!parsed.success) {
-    console.error('[rate-limit] Failed to validate rate-limit configuration:', parsed.error.flatten().fieldErrors);
     if (process.env.NODE_ENV === 'production') {
       throw new Error('Invalid rate-limit configuration');
     }

@@ -6,8 +6,8 @@ import { logActivity } from '@/lib/db/activity';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { ActivityType, evolutionInstances } from '@/lib/db/schema';
-import { enforceLimit } from '@/lib/limits';
 import { getEvolutionConfig, isChannelActive } from '@/lib/whatsapp/config';
+import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
 
 const WEBHOOK_EVENTS = [
   'MESSAGES_UPSERT',
@@ -37,24 +37,11 @@ function isEvolutionUnavailableError(error: unknown) {
   return /fetch failed|ECONNREFUSED|ETIMEDOUT|timed out|Unable to connect/i.test(message);
 }
 
-async function parseEvolutionJson(response: Response) {
-  const raw = await response.text();
-  if (!raw) return {};
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { message: raw };
-  }
-}
-
-function extractEvolutionError(payload: any, fallback: string) {
-  return payload?.response?.message?.[0] || payload?.message || payload?.error || fallback;
-}
-
 export async function POST(request: Request) {
+  console.log('[QR DEBUG] Instance setup request received');
   try {
     const body = await request.json().catch(() => null);
+    console.log('[QR DEBUG] Request body:', JSON.stringify(body, null, 2));
     const parsed = setupInstanceSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -83,11 +70,16 @@ export async function POST(request: Request) {
     const readStatus = Boolean((parsed.data as any).readStatus ?? false);
 
     const evoConfig = await getEvolutionConfig();
-    const EVOLUTION_API_URL = evoConfig.apiUrl;
+    console.log('[QR DEBUG] Evolution config:', JSON.stringify({
+      apiUrl: evoConfig.apiUrl,
+      hasApiKey: !!evoConfig.apiKey,
+      webhookUrl: evoConfig.webhookUrl,
+      isActive: evoConfig.isActive
+    }, null, 2));
     const MASTER_API_KEY = evoConfig.apiKey;
     const WEBHOOK_URL = evoConfig.webhookUrl;
 
-    if (!EVOLUTION_API_URL) {
+    if (!evoConfig.apiUrl) {
       return NextResponse.json({ success: false, error: 'Evolution API URL is not configured on the server.' }, { status: 500 });
     }
     if (!MASTER_API_KEY) {
@@ -102,12 +94,6 @@ export async function POST(request: Request) {
 
     if (!user || !team) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    try {
-      await enforceLimit(team.id, 'instances');
-    } catch (error: any) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 403 });
     }
 
     if (!(await isChannelActive('evolution'))) {
@@ -155,6 +141,9 @@ export async function POST(request: Request) {
       webhook: {
         enabled: true,
         url: WEBHOOK_URL,
+        headers: {
+          apikey: evoConfig.webhookToken || '',
+        },
         byEvents: false,
         base64: true,
         events: WEBHOOK_EVENTS,
@@ -174,82 +163,58 @@ export async function POST(request: Request) {
       evolutionPayload.number = number;
     }
 
-    let createResponse: Response;
+    let createData: any;
     try {
-      createResponse = await fetch(`${EVOLUTION_API_URL}/instance/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: MASTER_API_KEY,
-        },
-        body: JSON.stringify(evolutionPayload),
-        signal: AbortSignal.timeout(10_000),
-      });
-    } catch (error) {
+      console.log('[INSTANCE SETUP LOG] Requesting Evolution API to create instance:', evoInstanceName);
+      console.log('[INSTANCE SETUP LOG] Evolution payload:', JSON.stringify(evolutionPayload, null, 2));
+      createData = await EvolutionSDK.createInstance(evoInstanceName, evolutionPayload);
+      console.log('[INSTANCE SETUP LOG] Evolution API create instance response:', JSON.stringify(createData, null, 2));
+      console.log('[INSTANCE SETUP LOG] Webhook registration request completed during creation payload.');
+    } catch (error: any) {
       if (isEvolutionUnavailableError(error)) {
+        console.error('[INSTANCE SETUP LOG] Evolution API is unavailable:', error.message);
         return NextResponse.json(
           {
             success: false,
-            error: `Evolution API is unavailable at ${EVOLUTION_API_URL}. Start the service, then try generating the QR code again.`,
+            error: `Evolution API is unavailable. Start the service, then try generating the QR code again.`,
           },
           { status: 503 }
         );
       }
-      throw error;
-    }
 
-    let createData = await parseEvolutionJson(createResponse);
-
-    if (!createResponse.ok) {
-      const errorMsg = extractEvolutionError(createData, 'Failed to create instance.');
-      const normalizedError = JSON.stringify(createData).toLowerCase();
-
-      if (normalizedError.includes('already exists') || createResponse.status === 403) {
-        const existingResponse = await fetch(
-          `${EVOLUTION_API_URL}/instance/fetchInstances?instanceName=${evoInstanceName}`,
-          {
-            headers: { apikey: MASTER_API_KEY },
-            cache: 'no-store',
-            signal: AbortSignal.timeout(10_000),
-          }
-        );
-
-        const existingData = await parseEvolutionJson(existingResponse);
-        if (!existingResponse.ok) {
+      const normalizedError = error.message.toLowerCase();
+      if (normalizedError.includes('already exists') || normalizedError.includes('403') || normalizedError.includes('409')) {
+        try {
+          console.log(`[INSTANCE SETUP LOG] Instance ${evoInstanceName} already exists in Evolution API. Explicitly registering webhook...`);
+          await EvolutionSDK.setWebhook(evoInstanceName, {
+            enabled: true,
+            url: WEBHOOK_URL,
+            events: WEBHOOK_EVENTS,
+          });
+          console.log(`[INSTANCE SETUP LOG] Webhook registered successfully for existing instance ${evoInstanceName}.`);
+          createData = await EvolutionSDK.getConnectionState(evoInstanceName);
+          console.log('[INSTANCE SETUP LOG] Loaded connection state for pre-existing instance:', JSON.stringify(createData, null, 2));
+        } catch (conflictError: any) {
+          console.error(`[INSTANCE SETUP LOG] Failed to handle pre-existing instance ${evoInstanceName}:`, conflictError.message);
           return NextResponse.json(
             {
               success: false,
-              error: extractEvolutionError(existingData, `Instance ${cleanDisplayName} already exists.`),
-            },
-            { status: existingResponse.status || 409 }
-          );
-        }
-
-        const foundInstance = Array.isArray(existingData)
-          ? existingData.find((item: any) => item.instance?.instanceName === evoInstanceName || item.instanceName === evoInstanceName)
-          : existingData;
-
-        if (!foundInstance) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Instance ${cleanDisplayName} already exists, but its details could not be loaded.`,
+              error: `Instance ${cleanDisplayName} already exists, but its details or webhook could not be set.`,
             },
             { status: 409 }
           );
         }
-
-        createData = foundInstance;
       } else {
-        return NextResponse.json({ success: false, error: errorMsg }, { status: createResponse.status || 500 });
+        console.error('[INSTANCE SETUP LOG] Unhandled Evolution API creation error:', error.message);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
       }
     }
 
     const resolvedInstanceId =
-      createData.instance?.instanceId ||
-      createData.instance?.id ||
-      createData.instanceId ||
-      createData.id ||
+      createData?.instance?.instanceId ||
+      createData?.instance?.id ||
+      createData?.instanceId ||
+      createData?.id ||
       existingDbInstance?.evolutionInstanceId ||
       evoInstanceName;
 
@@ -257,31 +222,29 @@ export async function POST(request: Request) {
     let status = 'creating';
 
     if (integration === 'WHATSAPP-BAILEYS') {
-      let connectResponse: Response;
       try {
-        connectResponse = await fetch(`${EVOLUTION_API_URL}/instance/connect/${evoInstanceName}`, {
-          method: 'GET',
-          headers: { apikey: MASTER_API_KEY },
-          cache: 'no-store',
-          signal: AbortSignal.timeout(10_000),
-        });
-      } catch (error) {
+        console.log('[QR DEBUG] Fetching QR code for instance:', evoInstanceName);
+        qrData = await EvolutionSDK.fetchQR(evoInstanceName);
+        console.log('[QR DEBUG] QR fetch response:', JSON.stringify({
+          hasBase64: !!qrData?.base64 || !!qrData?.qrcode?.base64,
+          hasCode: !!qrData?.code || !!qrData?.qrcode?.code,
+          hasPairingCode: !!qrData?.pairingCode || !!qrData?.qrcode?.pairingCode,
+          base64Length: qrData?.base64?.length || qrData?.qrcode?.base64?.length || 0,
+          fullResponse: qrData
+        }, null, 2));
+        status = qrData?.base64 || qrData?.qrcode?.base64 ? 'waiting_qr' : 'connecting';
+      } catch (error: any) {
         if (isEvolutionUnavailableError(error)) {
           return NextResponse.json(
             {
               success: false,
-              error: `Evolution API is unavailable at ${EVOLUTION_API_URL}. Start the service, then try generating the QR code again.`,
+              error: `Evolution API is unavailable. Start the service, then try generating the QR code again.`,
             },
             { status: 503 }
           );
         }
-        throw error;
-      }
 
-      const connectData = await parseEvolutionJson(connectResponse);
-
-      if (!connectResponse.ok) {
-        const qrError = extractEvolutionError(connectData, 'Failed to fetch QR Code.');
+        const qrError = error.message;
         const normalizedError = qrError.toLowerCase();
 
         if (
@@ -291,14 +254,14 @@ export async function POST(request: Request) {
         ) {
           status = 'open';
         } else {
-          return NextResponse.json({ success: false, error: qrError }, { status: connectResponse.status || 500 });
+          // Instance is still initializing — treat as 'connecting', frontend will poll
+          console.warn(`[setup] QR fetch failed (instance still initializing): ${qrError}`);
+          status = 'connecting';
         }
-      } else {
-        qrData = connectData;
-        status = qrData?.base64 || qrData?.qrcode?.base64 ? 'waiting_qr' : 'connecting';
       }
     }
 
+    console.log('[INSTANCE SETUP LOG] Database insert/upsert running for instance:', evoInstanceName, 'status:', status);
     await db.insert(evolutionInstances)
       .values({
         teamId: team.id,
@@ -311,6 +274,8 @@ export async function POST(request: Request) {
         metaBusinessId: metaBusinessId || null,
         metaPhoneNumberId: metaPhoneNumberId || null,
         metaToken: metaToken || null,
+        status,
+        createdBy: user.id,
       })
       .onConflictDoUpdate({
         target: [evolutionInstances.teamId, evolutionInstances.instanceName],
@@ -323,16 +288,41 @@ export async function POST(request: Request) {
           metaBusinessId: metaBusinessId || null,
           metaPhoneNumberId: metaPhoneNumberId || null,
           metaToken: metaToken || null,
+          status,
+          createdBy: user.id,
           updatedAt: new Date(),
         },
       });
 
+    console.log(`[INSTANCE_CREATED] Created instance: ${evoInstanceName}`);
+    console.log('[INSTANCE SETUP LOG] Database insert/upsert completed for instance:', evoInstanceName);
+
+    // Verify instance exists in Evolution API before returning success (non-blocking warning check)
+    try {
+      console.log(`[INSTANCE SETUP LOG] Verifying instance ${evoInstanceName} exists in Evolution API...`);
+      const verifyResult = await EvolutionSDK.fetchInstances(evoInstanceName);
+      console.log(`[INSTANCE SETUP LOG] Verification response:`, JSON.stringify(verifyResult, null, 2));
+    } catch (verifyError: any) {
+      console.warn(`[INSTANCE SETUP LOG] Verification check failed (instance might still be initializing asynchronously):`, verifyError.message);
+    }
+
     await logActivity(team.id, user.id, ActivityType.CREATE_INSTANCE);
+
+    console.log('[INSTANCE SETUP LOG] Instance setup completed successfully');
+    console.log('[INSTANCE SETUP LOG] Response payload to client:', JSON.stringify({
+      success: true,
+      instance: {
+        instanceName: evoInstanceName,
+        displayName: cleanDisplayName,
+        instanceId: resolvedInstanceId,
+        status,
+      },
+      hasQrCode: !!qrData?.base64 || !!qrData?.qrcode?.base64
+    }, null, 2));
 
     return NextResponse.json({
       success: true,
       instance: {
-        ...createData.instance,
         instanceName: evoInstanceName,
         displayName: cleanDisplayName,
         instanceId: resolvedInstanceId,

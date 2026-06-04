@@ -3,6 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { funnelStages } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
+import { cacheGet, cacheSet, cacheInvalidateTeam, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +12,15 @@ export async function GET() {
     const team = await getTeamForUser();
     if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const cacheKey = CacheKeys.funnelStages(team.id);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
+    }
+
     const stages = await db.query.funnelStages.findMany({
       where: eq(funnelStages.teamId, team.id),
+      columns: { id: true, name: true, emoji: true, order: true },
       orderBy: (funnelStages, { asc }) => [asc(funnelStages.order)],
     });
 
@@ -27,10 +35,12 @@ export async function GET() {
         const newStages = await db.insert(funnelStages)
             .values(defaultStages)
             .returning();
+        await cacheSet(cacheKey, newStages, CacheTTL.contacts);
         return NextResponse.json(newStages);
     }
 
-    return NextResponse.json(stages);
+    await cacheSet(cacheKey, stages, CacheTTL.contacts);
+    return NextResponse.json(stages, { headers: { 'X-Cache': 'MISS' } });
 
   } catch (error: any) {
     console.error('Failed to fetch stages:', error.message);
@@ -48,7 +58,8 @@ export async function POST(request: Request) {
       if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   
       const existing = await db.query.funnelStages.findMany({
-          where: eq(funnelStages.teamId, team.id)
+          where: eq(funnelStages.teamId, team.id),
+          columns: { id: true }
       });
   
       const [newStage] = await db.insert(funnelStages)
@@ -59,6 +70,8 @@ export async function POST(request: Request) {
           order: existing.length + 1,
         })
         .returning();
+      
+      await cacheInvalidateTeam(team.id);
   
       return NextResponse.json(newStage, { status: 201 });
   

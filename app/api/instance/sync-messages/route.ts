@@ -214,6 +214,8 @@ export async function POST(request: NextRequest) {
           participant,
           participantName,
           isInternal: false,
+          instanceId: instance.id,
+          remoteJid,
         });
       }
 

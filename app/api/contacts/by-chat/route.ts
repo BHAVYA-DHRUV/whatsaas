@@ -3,7 +3,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { chats, contacts } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, like } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,10 +20,21 @@ export async function GET(request: NextRequest) {
     }
 
     
+    let jidCondition;
+    if (jid.endsWith('@g.us')) {
+      jidCondition = eq(chats.remoteJid, jid);
+    } else {
+      const phone = jid.split('@')[0];
+      jidCondition = or(
+        eq(chats.remoteJid, jid),
+        like(chats.remoteJid, `${phone}@%`)
+      );
+    }
+
     const chat = await db.query.chats.findFirst({
       where: and(
         eq(chats.teamId, team.id),
-        eq(chats.remoteJid, jid)
+        jidCondition
       ),
       columns: { id: true }
     });

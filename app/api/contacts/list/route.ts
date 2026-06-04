@@ -4,6 +4,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { checkRoutePermission } from '@/lib/auth/permissions-guard';
 import { contacts } from '@/lib/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,9 +18,28 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const cacheKey = CacheKeys.contactsList(team.id);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
+    }
+
     const teamContacts = await db.query.contacts.findMany({
       where: eq(contacts.teamId, team.id),
       orderBy: [desc(contacts.updatedAt)],
+      columns: {
+        id: true,
+        name: true,
+        notes: true,
+        customData: true,
+        showTimeInStage: true,
+        assignedUserId: true,
+        assignedDepartmentId: true,
+        funnelStageId: true,
+        chatId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       with: {
         assignedUser: {
           columns: { id: true, name: true, email: true }
@@ -27,33 +47,48 @@ export async function GET() {
         assignedDepartment: {
           columns: { id: true, name: true }
         },
-        funnelStage: true,
+        funnelStage: {
+          columns: { id: true, name: true, emoji: true, order: true }
+        },
         chat: {
-            columns: { remoteJid: true, profilePicUrl: true, instanceId: true },
-            with: {
-              instance: {
-                columns: { id: true, instanceName: true }
-              }
+          columns: { remoteJid: true, profilePicUrl: true, instanceId: true },
+          with: {
+            instance: {
+              columns: { id: true, instanceName: true }
             }
+          }
         },
         contactTags: {
           with: {
-            tag: true
+            tag: {
+              columns: { id: true, name: true, color: true }
+            }
           }
         }
       }
     });
 
     const formatted = teamContacts.map(c => ({
-        ...c,
+        id: c.id,
+        name: c.name,
+        notes: c.notes,
+        customData: c.customData,
+        showTimeInStage: c.showTimeInStage,
+        assignedUser: c.assignedUser,
+        assignedDepartment: c.assignedDepartment,
+        funnelStage: c.funnelStage,
         tags: c.contactTags.map(ct => ct.tag),
         profilePicUrl: c.chat?.profilePicUrl,
         phone: c.chat?.remoteJid.split('@')[0],
         instanceId: c.chat?.instance?.id || null,
         instanceName: c.chat?.instance?.instanceName || null,
+        createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
     }));
 
-    return NextResponse.json(formatted);
+    await cacheSet(cacheKey, formatted, CacheTTL.contacts);
+
+    return NextResponse.json(formatted, { headers: { 'X-Cache': 'MISS' } });
 
   } catch (error: any) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

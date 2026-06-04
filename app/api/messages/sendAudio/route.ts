@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { chats, messages, evolutionInstances } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, like } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 import { sendAudioViaProvider } from '@/lib/whatsapp/send-helpers';
 import fs from 'fs/promises';
@@ -64,6 +64,17 @@ export async function POST(request: NextRequest) {
     if (!team) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+    let jidCondition;
+    if (recipientJid.endsWith('@g.us')) {
+      jidCondition = eq(chats.remoteJid, recipientJid);
+    } else {
+      const phone = recipientJid.split('@')[0];
+      jidCondition = or(
+        eq(chats.remoteJid, recipientJid),
+        like(chats.remoteJid, `${phone}@%`)
+      );
+    }
+
     let activeInstance = null;
     let targetChat = null;
     if (instanceId) {
@@ -75,7 +86,7 @@ export async function POST(request: NextRequest) {
             targetChat = await db.query.chats.findFirst({
                 where: and(
                     eq(chats.teamId, team.id),
-                    eq(chats.remoteJid, recipientJid),
+                    jidCondition,
                     eq(chats.instanceId, activeInstance.id)
                 )
             });
@@ -86,7 +97,7 @@ export async function POST(request: NextRequest) {
         targetChat = await db.query.chats.findFirst({
             where: and(
                 eq(chats.teamId, team.id),
-                eq(chats.remoteJid, recipientJid)
+                jidCondition
             ),
             with: {
                 instance: true
@@ -138,7 +149,7 @@ export async function POST(request: NextRequest) {
     
     if (activeInstance.integration === 'META-CLOUD') {
       const chatForMeta = targetChat || await db.query.chats.findFirst({
-        where: and(eq(chats.teamId, team.id), eq(chats.remoteJid, recipientJid)),
+        where: and(eq(chats.teamId, team.id), jidCondition),
         columns: { id: true },
       });
 
@@ -236,7 +247,8 @@ export async function POST(request: NextRequest) {
               lastMessageTimestamp: new Date(),
               lastMessageFromMe: true,
               unreadCount: 0,
-              lastMessageStatus: messageStatus
+              lastMessageStatus: messageStatus,
+              deletedAt: null
             })
             .where(eq(chats.id, finalChatId));
       }

@@ -46,7 +46,10 @@ class SocketClient {
     this.socket = io(socketUrl, {
       autoConnect: false,
       transports: ['websocket'],
-      reconnection: false,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
       timeout: 5_000,
       forceNew: true,
       upgrade: true,
@@ -62,7 +65,7 @@ class SocketClient {
     this.socket.on('connect_error', (error) => {
       if (this.warnedConnectError) return;
       this.warnedConnectError = true;
-      console.warn('[socket-client] Unable to reach realtime server on port 3001:', error.message);
+      // Silently handle connection errors - socket will reconnect when available
     });
   }
 

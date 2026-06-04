@@ -111,6 +111,7 @@ export async function DELETE(request: NextRequest) {
         await logActivity(team.id, user.id, ActivityType.DELETE_INSTANCE);
     }
 
+    console.log(`[INSTANCE_DELETED] Deleted instance ${instanceName}`);
     console.log(`Deleting instance ${dbInstance.id} from local database.`);
     await db.delete(evolutionInstances)
       .where(eq(evolutionInstances.id, dbInstance.id));

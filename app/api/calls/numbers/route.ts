@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'No team found' }, { status: 403 });
     }
 
-    await enforceFeature(userWithTeam.teamId, 'isVoiceCallsEnabled');
+    // Feature check removed - all features enabled
 
     const config = await db.query.twilioConfigs.findFirst({
       where: eq(twilioConfigs.isActive, true),

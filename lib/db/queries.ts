@@ -1,4 +1,5 @@
 import { unstable_cache } from 'next/cache';
+import { cache } from 'react';
 import { desc, and, eq, isNull, count } from 'drizzle-orm';
 import { db } from './drizzle';
 import { activityLogs, teamMembers, teams, users, plans, contacts, evolutionInstances } from './schema';
@@ -8,41 +9,14 @@ import { verifyToken } from '@/lib/auth/session';
 const DEFAULT_DB_QUERY_TIMEOUT = Number(process.env.DB_QUERY_TIMEOUT_MS) || 5000;
 
 const queryWithTimeout = <T>(promise: Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      const err = new Error(`Database query timed out after ${ms}ms`);
-      console.error('[db] query timeout:', err.message);
-      reject(err);
-    }, ms);
-
-    promise
-      .then((value) => resolve(value))
-      .catch((error) => reject(error))
-      .finally(() => clearTimeout(timer));
-  });
+  return promise;
 };
 
 async function queryWithRetry<T>(operation: () => Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT, retries = 3): Promise<T> {
-  let attempt = 0;
-  let lastErr: any = null;
-  while (attempt <= retries) {
-    try {
-      return await queryWithTimeout(operation(), ms);
-    } catch (err: any) {
-      lastErr = err;
-      attempt += 1;
-      const msg = String(err.message || '').toLowerCase();
-      const retryable = msg.includes('timeout') || msg.includes('connection') || msg.includes('econnrefused') || msg.includes('etimedout');
-      if (attempt > retries || !retryable) break;
-      const backoff = Math.min(1000, 200 * attempt * attempt);
-      console.warn(`[db] query failed (attempt ${attempt}/${retries}), retrying in ${backoff}ms:`, err.message || err);
-      await new Promise((r) => setTimeout(r, backoff));
-    }
-  }
-  throw lastErr;
+  return operation();
 }
 
-export async function getUser() {
+export const getUser = cache(async () => {
   try {
     const authHeader = (await headers()).get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -94,7 +68,7 @@ export async function getUser() {
   }
 
   return user[0];
-}
+});
 
 const loadPublishedPlans = unstable_cache(
   async () => {
@@ -247,7 +221,7 @@ export async function ensureDefaultTeamForUser(userId: number, email: string) {
   return team;
 }
 
-export async function getTeamForUser() {
+export const getTeamForUser = cache(async () => {
   const user = await getUser();
   if (!user) {
     return null;
@@ -301,9 +275,9 @@ export async function getTeamForUser() {
     console.error('ensureDefaultTeamForUser failed:', error);
     return null;
   }
-}
+});
 
-export async function getUserMembership() {
+export const getUserMembership = cache(async () => {
   const user = await getUser();
   if (!user) return null;
 
@@ -316,4 +290,4 @@ export async function getUserMembership() {
   }));
 
   return membership || null;
-}
+});

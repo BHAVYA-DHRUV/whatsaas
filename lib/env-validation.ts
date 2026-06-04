@@ -3,6 +3,8 @@
  * Ensures all required environment variables are set and valid
  */
 
+import 'dotenv/config';
+
 export interface EnvValidationResult {
   valid: boolean;
   errors: string[];
@@ -15,8 +17,8 @@ export function validateEnvironment(): EnvValidationResult {
 
   // Required variables
   const required = [
-    'DATABASE_URL',
-    'NEXTAUTH_SECRET',
+    'POSTGRES_URL',
+    'AUTH_SECRET',
   ];
 
   const optional = [
@@ -43,16 +45,16 @@ export function validateEnvironment(): EnvValidationResult {
     }
   }
 
-  // Validate DATABASE_URL format
-  const dbUrl = process.env.DATABASE_URL;
+  // Validate POSTGRES_URL format
+  const dbUrl = process.env.POSTGRES_URL;
   if (dbUrl) {
     try {
       const url = new URL(dbUrl);
       if (!['postgres:', 'postgresql:'].includes(url.protocol)) {
-        errors.push('DATABASE_URL must use postgresql protocol');
+        errors.push('POSTGRES_URL must use postgresql protocol');
       }
     } catch {
-      errors.push('DATABASE_URL is not a valid URL');
+      errors.push('POSTGRES_URL is not a valid URL');
     }
   }
 

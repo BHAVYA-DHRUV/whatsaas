@@ -10,72 +10,82 @@ import { eq } from 'drizzle-orm';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const user = await getUser();
+  try {
+    const user = await getUser();
 
-  return Response.json(user, {
-    headers: {
-      'Cache-Control': 'no-store',
-    },
-  });
+    return Response.json(user, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (error: any) {
+    console.error('[User GET] Error:', error.message);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 export async function PUT(request: Request) {
-  const user = await getUser();
+  try {
+    const user = await getUser();
 
-  if (!user) {
-    return Response.json(
-      { error: 'Not authenticated' },
-      { status: 401 }
+    if (!user) {
+      return Response.json(
+        { error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    const {
+      name,
+      email,
+      enableSignature,
+    } = body;
+
+    if (!name || !email) {
+      return Response.json(
+        {
+          error: 'Name and email are required',
+        },
+        { status: 400 }
+      );
+    }
+
+    const userWithTeam = await getUserWithTeam(
+      user.id
     );
-  }
 
-  const body = await request.json();
-
-  const {
-    name,
-    email,
-    enableSignature,
-  } = body;
-
-  if (!name || !email) {
-    return Response.json(
-      {
-        error: 'Name and email are required',
-      },
-      { status: 400 }
-    );
-  }
-
-  const userWithTeam = await getUserWithTeam(
-    user.id
-  );
-
-  await Promise.all([
-    db
-      .update(users)
-      .set({
-        name,
-        email,
-        enableSignature:
-          !!enableSignature,
-      })
-      .where(eq(users.id, user.id)),
-
-    userWithTeam?.teamId
-      ? db.insert(activityLogs).values({
-          teamId: userWithTeam.teamId,
-          userId: user.id,
-          action:
-            ActivityType.UPDATE_ACCOUNT,
+    await Promise.all([
+      db
+        .update(users)
+        .set({
+          name,
+          email,
+          enableSignature:
+            !!enableSignature,
         })
-      : Promise.resolve(),
-  ]);
+        .where(eq(users.id, user.id)),
 
-  const updatedUser = await getUser();
+      userWithTeam?.teamId
+        ? db.insert(activityLogs).values({
+            teamId: userWithTeam.teamId,
+            userId: user.id,
+            action:
+              ActivityType.UPDATE_ACCOUNT,
+          })
+        : Promise.resolve(),
+    ]);
 
-  return Response.json(updatedUser, {
-    headers: {
-      'Cache-Control': 'no-store',
-    },
-  });
+    const updatedUser = await getUser();
+
+    return Response.json(updatedUser, {
+      headers: {
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch (error: any) {
+    console.error('[User PUT] Error:', error.message);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

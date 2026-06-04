@@ -12,14 +12,7 @@ const DEFAULT_BRANDING = {
 };
 
 const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`Database query timed out after ${ms}ms`)), ms);
-
-    promise
-      .then((value) => resolve(value))
-      .catch((error) => reject(error))
-      .finally(() => clearTimeout(timer));
-  });
+  return promise;
 };
 
 const loadBranding = unstable_cache(
@@ -36,6 +29,18 @@ const loadBranding = unstable_cache(
   { revalidate: 600, tags: ['branding'] }
 );
 
+let memoryCache: { data: any; expiresAt: number } | null = null;
+
 export async function getBranding() {
-  return loadBranding();
+  const now = Date.now();
+  if (memoryCache && memoryCache.expiresAt > now) {
+    return memoryCache.data;
+  }
+
+  const data = await loadBranding();
+  memoryCache = {
+    data,
+    expiresAt: now + 10 * 60 * 1000, // 10 minutes
+  };
+  return data;
 }

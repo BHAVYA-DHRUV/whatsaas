@@ -40,8 +40,8 @@ function resolveBaseUrl(): string {
 function resolveEvolutionApiKey(rowApiKey?: string | null): string {
   return (
     rowApiKey ||
-    process.env.EVOLUTION_API_KEY ||
     process.env.AUTHENTICATION_API_KEY ||
+    process.env.EVOLUTION_API_KEY ||
     ''
   );
 }
@@ -56,7 +56,13 @@ function resolveEvolutionWebhookUrl(rowWebhookUrl?: string | null): string {
     return directWebhookUrl.replace(/\/$/, '');
   }
 
-  return `${resolveBaseUrl()}/api/webhook/evolution`;
+  let baseUrl = resolveBaseUrl();
+  if (baseUrl.includes('localhost:3000') || baseUrl.includes('127.0.0.1:3000')) {
+    baseUrl = baseUrl.replace('localhost:3000', 'host.docker.internal:3000')
+                     .replace('127.0.0.1:3000', 'host.docker.internal:3000');
+  }
+
+  return `${baseUrl}/api/webhook/evolution`;
 }
 
 export async function getEvolutionConfig(): Promise<EvolutionConfig> {

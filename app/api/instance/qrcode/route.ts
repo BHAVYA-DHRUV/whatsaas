@@ -2,6 +2,7 @@
 import { NextResponse } from 'next/server';
 import { getTeamForUser } from '@/lib/db/queries';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
+import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 
 function isEvolutionUnavailableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
@@ -19,8 +20,14 @@ export async function GET(request: Request) {
     }
 
     const instanceName = team.evolutionInstances[0].instanceName;
+    const cacheKey = CacheKeys.qrCode(instanceName);
 
-    
+    // Check Redis cache first
+    const cached = await cacheGet<{ base64: string | null; code: string | null; pairingCode: string | null }>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
+    }
+
     let connectResponse: Response;
     try {
       connectResponse = await fetch(
@@ -50,12 +57,16 @@ export async function GET(request: Request) {
 
     const qrData = await connectResponse.json();
 
-    
-    return NextResponse.json({
+    const payload = {
       base64: qrData.base64 || qrData.qrcode?.base64 || null,
       code: qrData.code || qrData.qrcode?.code || null,
       pairingCode: qrData.pairingCode || qrData.qrcode?.pairingCode || null,
-    });
+    };
+
+    // Cache the QR code in Redis
+    await cacheSet(cacheKey, payload, CacheTTL.qrCode);
+
+    return NextResponse.json(payload, { headers: { 'X-Cache': 'MISS' } });
 
   } catch (error: any) {
     console.error('Error fetching QR Code:', error.message);

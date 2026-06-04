@@ -7,6 +7,7 @@ import { locales } from '@/i18n/request';
 import { setRequestLocale } from 'next-intl/server';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Toaster } from 'sonner';
+import { ColorThemeHandler } from '@/components/layout/color-theme-handler';
 
 export const viewport: Viewport = {
   maximumScale: 1,
@@ -38,14 +39,18 @@ export default async function LocaleLayout({
 
   setRequestLocale(locale);
 
-  const messages = await getMessages();
-  
+  const messages = await Promise.race([
+    getMessages(),
+    new Promise((resolve) => setTimeout(() => resolve({}), 2000))
+  ]) as any;
+
   return (
     <NextIntlClientProvider messages={messages}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange={false}>
         <div className="bg-background text-foreground min-h-dvh">
           {children}
         </div>
+        <ColorThemeHandler />
         <Toaster richColors closeButton position="top-right" />
       </ThemeProvider>
     </NextIntlClientProvider>

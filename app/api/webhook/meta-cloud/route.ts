@@ -5,18 +5,23 @@ import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit';
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN || process.env.NEXT_PUBLIC_EVOLUTION_WEBHOOK_TOKEN;
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const mode = searchParams.get('hub.mode');
-  const token = searchParams.get('hub.verify_token');
-  const challenge = searchParams.get('hub.challenge');
+  try {
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('hub.mode');
+    const token = searchParams.get('hub.verify_token');
+    const challenge = searchParams.get('hub.challenge');
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('[Meta Webhook] Verification successful');
-    return new Response(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('[Meta Webhook] Verification successful');
+      return new Response(challenge, { status: 200, headers: { 'Content-Type': 'text/plain' } });
+    }
+
+    console.warn('[Meta Webhook] Verification failed. Token mismatch.');
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  } catch (error: any) {
+    console.error('[Meta Webhook GET] Error:', error.message);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  console.warn('[Meta Webhook] Verification failed. Token mismatch.');
-  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 
 export async function POST(request: Request) {

@@ -26,11 +26,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    try {
-      await enforceLimit(team.id, 'instances');
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message }, { status: 403 });
-    }
+    // Limit check removed - unlimited free plan
 
     const { exchangeToken, instanceName } = await request.json();
 

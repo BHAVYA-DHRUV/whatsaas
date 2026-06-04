@@ -18,6 +18,15 @@ async function checkAndRecoverInstance(instance: { id: number; instanceName: str
       return;
     }
 
+    // Skip if there is an active connection lock to avoid resetting Baileys (405)
+    const requestLockKey = `lock:qr_request:${instance.instanceName}`;
+    const { cacheGet } = await import('@/lib/cache/redis-cache');
+    const hasLock = await cacheGet<boolean>(requestLockKey).catch(() => false);
+    if (hasLock) {
+      console.log(`[instance-recovery] Lock active for ${instance.instanceName}. Skipping recovery to avoid reset loop.`);
+      return;
+    }
+
     // Check current connection state
     const stateResponse = await fetch(
       `${evoConfig.apiUrl}/instance/connectionState/${instance.instanceName}`,

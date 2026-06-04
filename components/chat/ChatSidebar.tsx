@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ type Props = {
   isSyncingMessages?: boolean;
 };
 
-export function ChatSidebar({
+export const ChatSidebar = memo(function ChatSidebar({
   chatDetails,
   isCollapsed,
   onToggleCollapse,
@@ -72,4 +73,4 @@ export function ChatSidebar({
       </div>
     </aside>
   );
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 import { Pin, BellOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -78,7 +78,7 @@ type ChatListItemProps = {
   isMuted?: boolean;
 };
 
-export function ChatListItem({
+export const ChatListItem = memo(function ChatListItem({
   chat,
   isActive = false,
   isSelectionMode = false,
@@ -86,10 +86,10 @@ export function ChatListItem({
   onSelect,
   isMuted = false,
 }: ChatListItemProps) {
-  const displayName = getChatDisplayName(chat);
-  const preview = chat.lastMessage || chat.lastMessageText || 'No messages yet';
-  const formattedTime = formatChatListTime(chat.lastMessageTimestamp);
-  const online = isContactOnline(chat.lastCustomerInteraction);
+  const displayName = useMemo(() => getChatDisplayName(chat), [chat]);
+  const preview = useMemo(() => chat.lastMessage || chat.lastMessageText || 'No messages yet', [chat.lastMessage, chat.lastMessageText]);
+  const formattedTime = useMemo(() => formatChatListTime(chat.lastMessageTimestamp), [chat.lastMessageTimestamp]);
+  const online = useMemo(() => isContactOnline(chat.lastCustomerInteraction), [chat.lastCustomerInteraction]);
   const unread = chat.unreadCount ?? 0;
 
   return (
@@ -164,7 +164,7 @@ export function ChatListItem({
       </div>
     </div>
   );
-}
+});
 
 export function ChatListSkeleton() {
   return (

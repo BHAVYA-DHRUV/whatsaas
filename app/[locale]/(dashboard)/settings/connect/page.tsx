@@ -20,6 +20,7 @@ import { Trash2, LogOut, QrCode, Plus, Smartphone, Settings as SettingsIcon, Mor
 import { getTeamChannel } from '@/lib/pusher-client';
 import useSWR from 'swr';
 import { useTranslations } from 'next-intl';
+import { useRouter } from '@/i18n/routing';
 
 type TeamData = { id: number; };
 
@@ -38,9 +39,11 @@ type InstanceDetailItem = {
 };
 
 type QrCodeApiResponse = {
+  qrCode?: string | null;
   base64: string | null;
   code?: string | null;
   pairingCode?: string | null;
+  status?: 'open' | 'waiting_qr' | 'connecting' | string;
 };
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
@@ -318,6 +321,7 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
 
 function InstanceCard({ details, mutateDetails, allInstances }: { details: InstanceDetailItem; mutateDetails: () => void; allInstances: InstanceDetailItem[] }) {
   const t = useTranslations('Settings');
+  const router = useRouter();
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -427,22 +431,68 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
     }
   };
 
-  const fetchQr = async () => {
-      setQrLoading(true); setShowQrModal(true); setQrCode(null); setPairingCode(null); setError(null);
+  const fetchQr = async (attempt: number | React.MouseEvent = 0) => {
+      const actualAttempt = typeof attempt === 'number' ? attempt : 0;
+      if (actualAttempt === 0) {
+          setQrLoading(true); 
+          setShowQrModal(true); 
+          setQrCode(null); 
+          setPairingCode(null); 
+          setError(null);
+      }
       const identifier = details.internalName || details.instanceName;
       try {
-          const response = await fetch(`/api/instance/connect?instanceName=${encodeURIComponent(identifier)}`);
+          const url = `/api/instance/connect?instanceName=${encodeURIComponent(identifier)}${actualAttempt === 0 ? '&reconnect=true' : ''}`;
+          const response = await fetch(url);
           const data: QrCodeApiResponse = await response.json();
-          if (!response.ok) throw new Error((data as any).error || t('could_not_load_qr_code_error'));
-          if (data.base64) {
-            setQrCode(data.base64.startsWith('data:') ? data.base64 : `data:image/png;base64,${data.base64}`);
+
+          if (!response.ok) {
+            // On 503, retry up to 12 times
+            if (response.status === 503 && actualAttempt < 12 && showQrModalRef.current) {
+              setTimeout(() => fetchQr(actualAttempt + 1), 4000);
+              return;
+            }
+            throw new Error((data as any).error || t('could_not_load_qr_code_error'));
           }
-          if (data.pairingCode || data.code) {
-            setPairingCode(data.pairingCode || data.code || null);
+
+          // Instance is open/connected - no QR needed
+          if (data.status === 'open' || (!data.qrCode && !data.base64 && !data.pairingCode && !data.code && detailsRef.current.status === 'open')) {
+            setShowQrModal(false);
+            setQrLoading(false);
+            toast.info(t('instance_already_connected_info'));
+            mutateDetails();
+            return;
           }
-          else { setShowQrModal(false); toast.info(t('instance_already_connected_info')); }
-      } catch (err: any) { toast.error(err.message); setShowQrModal(false); setError(err.message);}
-      finally { setQrLoading(false); }
+
+          // QR code received
+          if (data.qrCode || data.base64 || data.pairingCode || data.code) {
+            if (data.qrCode) {
+              setQrCode(data.qrCode);
+            } else if (data.base64) {
+              setQrCode(data.base64.startsWith('data:') ? data.base64 : `data:image/png;base64,${data.base64}`);
+            }
+            if (data.pairingCode || data.code) {
+              setPairingCode(data.pairingCode || data.code || null);
+            }
+            setQrLoading(false);
+          } else {
+            // No QR yet — instance is still initializing/connecting, poll again
+            if (actualAttempt < 15 && showQrModalRef.current) {
+              setTimeout(() => fetchQr(actualAttempt + 1), 3000);
+            } else {
+              setQrLoading(false);
+              setError(t('could_not_load_qr_code_error'));
+            }
+          }
+      } catch (err: any) { 
+          if (actualAttempt < 12 && showQrModalRef.current) {
+              setTimeout(() => fetchQr(actualAttempt + 1), 3000);
+          } else {
+              toast.error(err.message); 
+              setError(err.message);
+              setQrLoading(false);
+          }
+      }
   };
 
   const handleAction = async (action: 'logout' | 'delete') => {
@@ -506,8 +556,18 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
     const channel = getTeamChannel(teamId);
     if (!channel) return;
 
-    const handleQrUpdate = (data: { instance?: string }) => {
-      if (showQrModalRef.current && (!data.instance || data.instance === detailsRef.current.internalName || data.instance === detailsRef.current.instanceName)) {
+    const handleQrUpdate = (data: { instance?: string; qrcode?: { base64?: string; code?: string; pairingCode?: string } }) => {
+      if (!showQrModalRef.current) return;
+      if (data.instance && data.instance !== detailsRef.current.internalName && data.instance !== detailsRef.current.instanceName) return;
+
+      // If the Pusher event already contains the QR base64, use it directly (no extra API call)
+      if (data.qrcode?.base64) {
+        const b64 = data.qrcode.base64;
+        setQrCode(b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`);
+        setPairingCode(data.qrcode.pairingCode || data.qrcode.code || null);
+        setQrLoading(false);
+        setError(null);
+      } else {
         fetchQr();
       }
     };
@@ -518,6 +578,10 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
         if (data.status === 'open' && showQrModalRef.current) {
           setShowQrModal(false);
           toast.success(t('connected_success_toast'));
+          // Auto-redirect to inbox after successful connection
+          setTimeout(() => {
+            router.push('/inbox');
+          }, 1500);
         }
       }
     };
@@ -603,6 +667,9 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
                     <DialogContent className="p-0 overflow-hidden sm:max-w-md">
                       <DialogHeader>
                         <DialogTitle className="sr-only">{t('connect_whatsapp_title')}</DialogTitle>
+                        <DialogDescription className="sr-only">
+                          {t('connect_whatsapp_desc')}
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="p-6 pb-2 text-center bg-background">
                         <h2 className="text-xl font-bold text-foreground">{t('connect_whatsapp_title')}</h2>
@@ -610,7 +677,16 @@ function InstanceCard({ details, mutateDetails, allInstances }: { details: Insta
                       </div>
                         <div className="flex flex-col items-center justify-center p-8 border-t bg-muted/30">
                             <div className="relative p-2 bg-white border rounded-lg shadow-sm">
-                                {qrLoading && <div className="flex items-center justify-center w-64 h-64"><Loader2 className="w-8 h-8 animate-spin text-muted-foreground"/></div>}
+                                {qrLoading && (
+                                    <div className="flex flex-col items-center justify-center w-64 h-64 p-4 text-center">
+                                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground mb-3"/>
+                                        <p className="text-xs text-muted-foreground animate-pulse">
+                                            {details.status === 'connecting'
+                                                ? "Initializing WhatsApp engine..."
+                                                : "Generating QR code..."}
+                                        </p>
+                                    </div>
+                                )}
                                 {qrCode && !qrLoading && <img src={qrCode} alt="QR Code" className="object-contain w-64 h-64"/>}
                                 {!qrLoading && !qrCode && (
                                     <div className="flex flex-col items-center justify-center w-64 h-64 p-4 text-center">

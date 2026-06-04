@@ -45,15 +45,15 @@ export const plans = pgTable('plans', {
   interval: varchar('interval', { length: 20 }).notNull().default('month'),
   trialDays: integer('trial_days').notNull().default(0),
   
-  maxUsers: integer('max_users').notNull().default(1),
-  maxContacts: integer('max_contacts').notNull().default(1000),
-  maxInstances: integer('max_instances').notNull().default(1),
+  maxUsers: integer('max_users').notNull().default(-1), // -1 = unlimited
+  maxContacts: integer('max_contacts').notNull().default(-1), // -1 = unlimited
+  maxInstances: integer('max_instances').notNull().default(-1), // -1 = unlimited
 
-  isAiEnabled: boolean('is_ai_enabled').notNull().default(false),
-  isFlowBuilderEnabled: boolean('is_flow_builder_enabled').notNull().default(false),
-  isCampaignsEnabled: boolean('is_campaigns_enabled').notNull().default(false),
-  isTemplatesEnabled: boolean('is_templates_enabled').notNull().default(false),
-  isVoiceCallsEnabled: boolean('is_voice_calls_enabled').notNull().default(false),
+  isAiEnabled: boolean('is_ai_enabled').notNull().default(true), // All features enabled
+  isFlowBuilderEnabled: boolean('is_flow_builder_enabled').notNull().default(true), // All features enabled
+  isCampaignsEnabled: boolean('is_campaigns_enabled').notNull().default(true), // All features enabled
+  isTemplatesEnabled: boolean('is_templates_enabled').notNull().default(true), // All features enabled
+  isVoiceCallsEnabled: boolean('is_voice_calls_enabled').notNull().default(true), // All features enabled
 
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -107,6 +107,7 @@ export const teamMembers = pgTable(
   (table) => ({
     teamIdIdx: index('team_members_team_id_idx').on(table.teamId),
     userIdIdx: index('team_members_user_id_idx').on(table.userId),
+    idxTeamMembersUserId: index('idx_team_members_user_id').on(table.userId),
   })
 );
 
@@ -151,6 +152,14 @@ export const evolutionInstances = pgTable('evolution_instances', {
     metaPhoneNumberId: text('meta_phone_number_id'),
     metaWabaId: text('meta_waba_id'),
     metaAppId: text('meta_app_id'),
+    status: varchar('status', { length: 50 }).default('unknown').notNull(),
+    profileName: text('profile_name'),
+    profilePictureUrl: text('profile_picture_url'),
+    connectedAt: timestamp('connected_at'),
+    lastSeen: timestamp('last_seen'),
+    messagesCount: integer('messages_count').default(0).notNull(),
+    connectionType: varchar('connection_type', { length: 50 }),
+    createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -159,6 +168,8 @@ export const evolutionInstances = pgTable('evolution_instances', {
       teamInstanceNameUnique: unique('team_instance_name_idx').on(table.teamId, table.instanceName),
       teamInstanceIdUnique: unique('team_instance_id_idx').on(table.teamId, table.evolutionInstanceId),
       teamIdIndex: index('instance_team_id_idx').on(table.teamId),
+      integrationIdx: index('instance_integration_idx').on(table.integration),
+      idxInstancesWorkspaceId: index('idx_instances_workspace_id').on(table.teamId),
     };
   }
 );
@@ -186,6 +197,7 @@ export const chats = pgTable(
     isPinned: boolean('is_pinned').notNull().default(false),
     isArchived: boolean('is_archived').notNull().default(false),
     pinnedAt: timestamp('pinned_at'),
+    deletedAt: timestamp('deleted_at'),
   },
   (self) => ({
     teamChatInstanceUnique: unique('team_chat_instance_idx').on(self.teamId, self.remoteJid, self.instanceId),
@@ -194,6 +206,11 @@ export const chats = pgTable(
       self.teamId,
       self.lastMessageTimestamp
     ),
+    instanceIdIdx: index('chats_instance_id_idx').on(self.instanceId),
+    remoteJidIdx: index('chats_remote_jid_idx').on(self.remoteJid),
+    isPinnedIdx: index('chats_is_pinned_idx').on(self.isPinned),
+    isArchivedIdx: index('chats_is_archived_idx').on(self.isArchived),
+    idxConversationsWorkspaceId: index('idx_conversations_workspace_id').on(self.teamId),
   })
 );
 
@@ -227,9 +244,17 @@ export const messages = pgTable('messages', {
   participantName: text('participant_name'),
   errorMessage: text('error_message'),
   timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
+  instanceId: integer('instance_id').references(() => evolutionInstances.id, { onDelete: 'set null' }),
+  remoteJid: text('remote_jid'),
 }, (table) => ({
   chatTimestampIdx: index('messages_chat_id_timestamp_idx').on(table.chatId, table.timestamp),
   chatIdIdx: index('messages_chat_id_idx').on(table.chatId),
+  timestampIdx: index('messages_timestamp_idx').on(table.timestamp),
+  statusIdx: index('messages_status_idx').on(table.status),
+  idxMessagesChatId: index('idx_messages_chat_id').on(table.chatId),
+  idxMessagesCreatedAt: index('idx_messages_created_at').on(table.timestamp),
+  instanceIdIdx: index('messages_instance_id_idx').on(table.instanceId),
+  remoteJidIdx: index('messages_remote_jid_idx').on(table.remoteJid),
 }));
 
 
@@ -325,11 +350,18 @@ export const contacts = pgTable('contacts', {
   bio: text('bio'),
   status: text('status'),
   lastSeen: timestamp('last_seen'),
+  phone: text('phone'),
+  pushName: text('push_name'),
+  profilePicture: text('profile_picture'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   teamIdIndex: index('contact_team_id_idx').on(table.teamId),
   chatIdIndex: index('contact_chat_id_idx').on(table.chatId),
+  assignedUserIdIdx: index('contact_assigned_user_id_idx').on(table.assignedUserId),
+  funnelStageIdIdx: index('contact_funnel_stage_id_idx').on(table.funnelStageId),
+  idxContactsWorkspaceId: index('idx_contacts_workspace_id').on(table.teamId),
+  phoneIndex: index('contacts_phone_idx').on(table.phone),
 }));
 
 export const contactTags = pgTable('contact_tags', {

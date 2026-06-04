@@ -548,11 +548,7 @@ export const inviteTeamMember = validatedActionWithUser(
       return { error: 'User is not part of a team' };
     }
 
-    try {
-      await enforceLimit(userWithTeam.teamId, 'users');
-    } catch (e: any) {
-      return { error: e.message };
-    }
+    // Limit check removed - unlimited free plan
 
     const team = await db.query.teams.findFirst({
       where: eq(teams.id, userWithTeam.teamId),

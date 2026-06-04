@@ -6,7 +6,24 @@ export type FrontendMessage = Omit<Message, 'timestamp'> & {
 
 export function formatMessageForFrontend(dbMessage: Partial<Message>): FrontendMessage {
   const timestamp = dbMessage.timestamp;
-  const timestampString = timestamp instanceof Date ? timestamp.toISOString() : (timestamp || new Date().toISOString());
+  let timestampString = '';
+
+  if (timestamp instanceof Date) {
+    timestampString = timestamp.toISOString();
+  } else if (typeof timestamp === 'string') {
+    const trimmed = timestamp.trim();
+    if (!trimmed.endsWith('Z') && !trimmed.includes('+') && !trimmed.includes('-') && !trimmed.includes('GMT')) {
+      const formatted = trimmed.replace(' ', 'T');
+      timestampString = formatted.includes('T') ? `${formatted}Z` : `${formatted}T00:00:00Z`;
+    } else {
+      timestampString = trimmed;
+    }
+  } else if (typeof timestamp === 'number') {
+    const ms = timestamp < 9999999999 ? timestamp * 1000 : timestamp;
+    timestampString = new Date(ms).toISOString();
+  } else {
+    timestampString = new Date().toISOString();
+  }
 
   return {
     id: dbMessage.id || `temp_${Date.now()}`,

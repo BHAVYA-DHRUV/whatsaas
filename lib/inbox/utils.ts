@@ -37,11 +37,23 @@ export function getChatDisplayName(chat: {
   contact?: { name?: string | null } | null;
   remoteJid: string;
 }): string {
+  const phone = chat.remoteJid.split('@')[0];
+  const contactName = chat.contact?.name;
+  
+  if (contactName && contactName !== phone && contactName !== `+${phone}`) {
+    return contactName;
+  }
+
+  const hasReadableName = chat.name && chat.name !== phone && chat.name !== `+${phone}`;
+  if (hasReadableName) {
+    return chat.name!;
+  }
+
   return (
-    chat.name ||
     chat.pushName ||
+    chat.name ||
     chat.contact?.name ||
-    chat.remoteJid.split('@')[0] ||
+    phone ||
     'Unknown'
   );
 }

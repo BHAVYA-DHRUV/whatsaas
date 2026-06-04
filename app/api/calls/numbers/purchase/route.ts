@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     }
 
     const teamId = userWithTeam.teamId;
-    await enforceFeature(teamId, 'isVoiceCallsEnabled');
+    // Feature check removed - all features enabled
 
     const body = await request.json();
     const { phoneNumber } = body;

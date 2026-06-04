@@ -1,4 +1,156 @@
-# WhatSaaS — full local/production stack
+# # WhatSaaS — full local/production stack
+# # cp production.env.example .env.docker && docker compose --env-file .env.docker up -d
+
+# services:
+#   postgres:
+#     image: postgres:16.4-alpine
+#     container_name: whats_saas_postgres
+#     restart: unless-stopped
+#     environment:
+#       POSTGRES_DB: ${POSTGRES_DB:-whatsaas_db}
+#       POSTGRES_USER: ${POSTGRES_USER:-postgres}
+#       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Postgresadmin2026}
+#     ports:
+#       - "${POSTGRES_PORT:-5432}:5432"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+#     command:
+#       - postgres
+#       - -c
+#       - max_connections=200
+#       - -c
+#       - shared_buffers=256MB
+#       - -c
+#       - effective_cache_size=1GB
+#       - -c
+#       - maintenance_work_mem=64MB
+#       - -c
+#       - checkpoint_completion_target=0.9
+#       - -c
+#       - wal_buffers=16MB
+#       - -c
+#       - default_statistics_target=100
+#       - -c
+#       - random_page_cost=1.1
+#       - -c
+#       - effective_io_concurrency=200
+#       - -c
+#       - work_mem=1310kB
+#       - -c
+#       - min_wal_size=1GB
+#       - -c
+#       - max_wal_size=4GB
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-whatsaas_db}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+
+#   redis:
+#     image: redis:7-alpine
+#     container_name: whats_saas_redis
+#     restart: unless-stopped
+#     ports:
+#       - "${REDIS_PORT:-6379}:6379"
+#     volumes:
+#       - redis_data:/data
+#       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+#     command: redis-server /usr/local/etc/redis/redis.conf --maxmemory 512mb --maxmemory-policy allkeys-lru
+#     healthcheck:
+#       test: ["CMD", "redis-cli", "ping"]
+#       interval: 10s
+#       timeout: 3s
+#       retries: 5
+
+#   # evolution-api:
+#   #   build:
+#   #     context: ./evolution-api
+#   #     dockerfile: Dockerfile
+#   #   container_name: whats_saas_evolution
+#   #   restart: unless-stopped
+#   #   depends_on:
+#   #     postgres:
+#   #       condition: service_healthy
+#   #   ports:
+#   #     - "${EVOLUTION_PORT:-8080}:8080"
+#   #   environment:
+#   #     SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://localhost:8080}
+#   #     AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:-evolution_global_api_key}
+#   #     DATABASE_ENABLED: "true"
+#   #     DATABASE_PROVIDER: postgresql
+#   #     DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-Postgresadmin2026}@postgres:5432/${POSTGRES_DB:-whatsaas_db}?schema=evolution
+#   #     CACHE_REDIS_ENABLED: "true"
+#   #     CACHE_REDIS_URI: redis://redis:6379
+#   #     WEBHOOK_GLOBAL_URL: ${WEBHOOK_GLOBAL_URL:-http://host.docker.internal:3000/api/webhook/evolution}
+#   #     WEBHOOK_GLOBAL_ENABLED: "true"
+#   #     CONFIG_SESSION_PHONE_VERSION: "2.3000.1017578272"
+
+#   #   volumes:
+#   #     - evolution_data:/evolution/instances
+
+
+#   evolution-api:
+#     build:
+#       context: ./evolution-api
+#       dockerfile: Dockerfile
+#     container_name: whats_saas_evolution
+#     restart: unless-stopped
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     ports:
+#       - "${EVOLUTION_PORT:-8080}:8080"
+#     environment:
+#       SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://localhost:8080}
+#       AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:-evolution_global_api_key}
+#       DATABASE_ENABLED: "true"
+#       DATABASE_PROVIDER: postgresql
+#       DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-Postgresadmin2026}@postgres:5432/${POSTGRES_DB:-whatsaas_db}?schema=evolution
+#       CACHE_REDIS_ENABLED: "false"
+#       CACHE_REDIS_URI: redis://redis:6379
+#       # UPDATED: Changed to false and added local cache
+#       CACHE_LOCAL_ENABLED: "true"
+#       WEBHOOK_GLOBAL_URL: ${WEBHOOK_GLOBAL_URL:-http://host.docker.internal:3000/api/webhook/evolution}
+#       WEBHOOK_GLOBAL_ENABLED: "true"
+#       # CRITICAL FIX: Updated WhatsApp version
+#       # CONFIG_SESSION_PHONE_VERSION: "2.3000.1033773198"
+#       CONFIG_SESSION_PHONE_VERSION: "2.3000.1017578272"
+#       # Performance optimizations
+#       DATABASE_SAVE_DATA_HISTORIC: "false"
+#       DATABASE_SAVE_DATA_CHATS: "false"
+#       DATABASE_SAVE_DATA_CONTACTS: "false"
+#     volumes:
+#       - evolution_data:/evolution/instances
+
+#   evolution:
+#       image: atendai/evolution-api:latest  # or whatever image you use
+#       container_name: whats_saas_evolution
+#       ports:
+#         - "8080:8080"
+#       environment:
+#         # Add these lines - THIS IS THE CRITICAL FIX
+#         - CONFIG_SESSION_PHONE_VERSION=2.3000.1017578272
+#         # - CONFIG_SESSION_PHONE_VERSION=2.3000.1033773198
+#         - DATABASE_SAVE_DATA_HISTORIC=false
+#         - DATABASE_SAVE_DATA_CHATS=false
+#         - DATABASE_SAVE_DATA_CONTACTS=false
+#         - CACHE_REDIS_ENABLED=false
+#         - CACHE_LOCAL_ENABLED=true
+#         # Your existing settings
+#         - AUTHENTICATION_API_KEY=452b41fc-b8cb-4614-b4a1-0ea8e4c02941
+#         - WEBHOOK_GLOBAL_URL=http://host.docker.internal:3000/api/webhook/evolution
+#         - WEBHOOK_GLOBAL_ENABLED=true
+#       volumes:
+#         - evolution_data:/app/evolution/instances
+
+# volumes:
+#   postgres_data:
+#   redis_data:
+#   evolution_data:
+
+
+ # WhatSaaS — full local/production stack
 # cp production.env.example .env.docker && docker compose --env-file .env.docker up -d
 
 services:
@@ -11,7 +163,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-Postgresadmin2026}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -21,6 +173,26 @@ services:
       - max_connections=200
       - -c
       - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - checkpoint_completion_target=0.9
+      - -c
+      - wal_buffers=16MB
+      - -c
+      - default_statistics_target=100
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - work_mem=1310kB
+      - -c
+      - min_wal_size=1GB
+      - -c
+      - max_wal_size=4GB
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-whatsaas_db}"]
       interval: 10s
@@ -36,7 +208,7 @@ services:
     volumes:
       - redis_data:/data
       - ./infra/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
-    command: redis-server /usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf --maxmemory 512mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -44,7 +216,9 @@ services:
       retries: 5
 
   evolution-api:
-    image: atendai/evolution-api:v2.1.1
+    build:
+      context: ./evolution-api
+      dockerfile: Dockerfile
     container_name: whats_saas_evolution
     restart: unless-stopped
     depends_on:
@@ -54,14 +228,21 @@ services:
       - "${EVOLUTION_PORT:-8080}:8080"
     environment:
       SERVER_URL: ${EVOLUTION_PUBLIC_URL:-http://localhost:8080}
-      AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:?Set AUTHENTICATION_API_KEY}
+      AUTHENTICATION_API_KEY: ${AUTHENTICATION_API_KEY:-evolution_global_api_key}
       DATABASE_ENABLED: "true"
       DATABASE_PROVIDER: postgresql
       DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-Postgresadmin2026}@postgres:5432/${POSTGRES_DB:-whatsaas_db}?schema=evolution
-      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_ENABLED: "false"
       CACHE_REDIS_URI: redis://redis:6379
+      CACHE_LOCAL_ENABLED: "true"
       WEBHOOK_GLOBAL_URL: ${WEBHOOK_GLOBAL_URL:-http://host.docker.internal:3000/api/webhook/evolution}
       WEBHOOK_GLOBAL_ENABLED: "true"
+      # CRITICAL FIX: Updated WhatsApp version
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1033773198"
+      # Performance optimizations
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      DATABASE_SAVE_DATA_CHATS: "true"
+      DATABASE_SAVE_DATA_CONTACTS: "true"
     volumes:
       - evolution_data:/evolution/instances
 

@@ -71,11 +71,15 @@ export function InboxShell({ children }: { children: React.ReactNode }) {
     }
   );
 
-  const { data: instances } = useSWR<{ dbId: number; instanceName: string }[]>(
+  const { data: instances } = useSWR<{ dbId: number; instanceName: string; status: string }[]>(
     '/api/instance/details',
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 15000 }
   );
+
+  const hasOpenInstance = useMemo(() => {
+    return (instances || []).some((inst: any) => inst.status === 'open');
+  }, [instances]);
 
   const validChats = useMemo(() => {
     if (!chats || !Array.isArray(chats)) return [];
@@ -120,6 +124,30 @@ export function InboxShell({ children }: { children: React.ReactNode }) {
   useInboxRealtime(teamId, useCallback(() => {
     void mutateChats();
   }, [mutateChats]));
+
+  const triggeredSyncRef = React.useRef<Record<number, boolean>>({});
+
+  React.useEffect(() => {
+    if (instances && Array.isArray(instances)) {
+      const openInstance = instances.find((inst: any) => inst.status === 'open');
+      if (openInstance && !triggeredSyncRef.current[openInstance.dbId]) {
+        triggeredSyncRef.current[openInstance.dbId] = true;
+        console.log(`[InboxShell] Automatically syncing chats for open instance ${openInstance.instanceName}...`);
+        fetch('/api/instance/sync-chats/auto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ instanceId: openInstance.dbId }),
+        })
+          .then((res) => {
+            if (res.ok) {
+              console.log('[InboxShell] Auto-sync triggered successfully.');
+              void mutateChats();
+            }
+          })
+          .catch((err) => console.error('[InboxShell] Failed to trigger auto-sync:', err));
+      }
+    }
+  }, [instances, mutateChats]);
 
   const instanceRows = useMemo(
     () =>
@@ -202,12 +230,19 @@ export function InboxShell({ children }: { children: React.ReactNode }) {
                     : 'No conversations yet.'}
               </p>
               {!chats?.length && activeTab === 'all' && (
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/settings/connect">
-                    <Smartphone className="mr-2 h-4 w-4" />
-                    Connect WhatsApp
-                  </Link>
-                </Button>
+                hasOpenInstance ? (
+                  <Button variant="default" size="sm" onClick={() => setIsNewChatOpen(true)}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Start New Chat
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href="/settings/connect">
+                      <Smartphone className="mr-2 h-4 w-4" />
+                      Connect WhatsApp
+                    </Link>
+                  </Button>
+                )
               )}
             </div>
           )}

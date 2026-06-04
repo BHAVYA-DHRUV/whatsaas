@@ -10,8 +10,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { processAutomation } from '@/lib/automation/engine';
 import { scheduleAIProcessing } from '@/lib/plugins/ai-chat/service';
 import { sendPushNotification, sendPushToTeam } from '@/lib/push-notifications';
-import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit';
 import { verifyEvolutionWebhook } from '@/lib/webhook/evolution-auth';
+import { triggerSync } from '@/src/lib/evolution/sync';
+import { cacheDel, CacheKeys } from '@/lib/cache/redis-cache';
 
 async function downloadProfilePic(url: string): Promise<string | null> {
     if (!url || url.startsWith('/uploads/')) return null;
@@ -82,6 +83,11 @@ function normalizeJid(jid: string): string {
         const cleanUser = user.split(':')[0];
         return `${cleanUser}@s.whatsapp.net`;
     }
+    if (jid.includes('@lid')) {
+        const [user] = jid.split('@');
+        const cleanUser = user.split(':')[0];
+        return `${cleanUser}@lid`;
+    }
     return jid;
 }
 
@@ -93,12 +99,13 @@ function getBestRemoteJid(key: any): string {
     }
 
     const remoteJidAlt = key.remoteJidAlt;
-    const participant = key.participant;
-
-    const candidates = [remoteJid, remoteJidAlt, participant];
+    // For 1-to-1 chats, remote JID is strictly determined by key.remoteJid or key.remoteJidAlt.
+    // We must NOT check key.participant, because it can be the user's own JID or group participant JID,
+    // which would cause messages to leak into the user's own chat thread.
+    const candidates = [remoteJid, remoteJidAlt];
 
     for (const cand of candidates) {
-        if (cand && cand.includes('@s.whatsapp.net')) {
+        if (cand && (cand.includes('@s.whatsapp.net') || cand.includes('@lid'))) {
             return normalizeJid(cand);
         }
     }
@@ -211,34 +218,32 @@ function getStatusWeight(status: string | null): number {
 }
 
 export async function POST(request: Request) {
+    console.log('[WEBHOOK DEBUG] Evolution webhook received');
     try {
         if (!(await verifyEvolutionWebhook(request))) {
-            try {
-                const headersSnapshot: any = {};
-                request.headers.forEach((v, k) => (headersSnapshot[k] = v));
-                const bodyText = await request.clone().text().catch(() => '');
-                console.warn('[Webhook] Evolution auth failed', { ip: getClientIp(request), headers: headersSnapshot });
-                await logWebhookEvent(0, 'unknown', 'auth_failure', null, null, 'ignored', 'invalid_credentials');
-                return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
-            } catch (e) {
-                console.warn('[Webhook] Evolution auth failed (logging error)');
-                return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
-            }
+            console.log('[WEBHOOK DEBUG] Webhook auth failed');
+            // Silent fail - webhook auth failures are expected in development without tokens
+            return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
         }
+        console.log('[WEBHOOK DEBUG] Webhook auth successful');
 
-    const limited = await checkRateLimit(`webhook:${getClientIp(request)}`, RATE_LIMITS.webhook);
-    if (limited) return limited;
+    // Webhooks are already verified. Rate limiting verified webhook events from our own container can cause connections to fail.
+    // const limited = await checkRateLimit(`webhook:${getClientIp(request)}`, RATE_LIMITS.webhook);
+    // if (limited) return limited;
 
     let body: any;
     try {
       body = await request.clone().json();
+      console.log('[WEBHOOK DEBUG] Webhook body:', JSON.stringify(body, null, 2));
     } catch {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
     const instanceName = body?.instance;
+    console.log('[WEBHOOK DEBUG] Instance name from webhook:', instanceName);
     
     if (!instanceName) {
+      console.log('[WEBHOOK DEBUG] No instance name in webhook body');
       return NextResponse.json({ error: 'Instance name missing' }, { status: 400 });
     }
 
@@ -251,8 +256,10 @@ export async function POST(request: Request) {
             accessToken: true
         }
     });
+    console.log('[WEBHOOK DEBUG] Database instance found:', !!instance);
 
     if (!instance || !instance.teamId) {
+        console.log('[WEBHOOK DEBUG] Instance not found in database or no teamId');
         return NextResponse.json({ received_but_ignored: true });
     }
 
@@ -260,8 +267,10 @@ export async function POST(request: Request) {
     const instanceId = instance.id;
     const metaToken = instance.metaToken;
     const pusherChannel = `team-${teamId}`;
+    console.log('[WEBHOOK DEBUG] TeamId:', teamId, 'InstanceId:', instanceId, 'PusherChannel:', pusherChannel);
 
     if (body.event === 'messages.upsert' && body.data) {
+      console.log('[WEBHOOK DEBUG] Processing messages.upsert event');
       const messageData = body.data;
       if (!messageData.key) {
           return NextResponse.json({ received_with_error: 'invalid message structure' });
@@ -475,6 +484,7 @@ export async function POST(request: Request) {
             unreadCount: sql`${chats.unreadCount} + ${incrementValue}`,
             lastMessageFromMe: isFromMe,
             lastMessageStatus: isFromMe ? (isGroup ? 'delivered' : 'sent') : null,
+            deletedAt: null,
         };
 
         if (!isGroup && !isFromMe && messageData.pushName) {
@@ -571,6 +581,8 @@ export async function POST(request: Request) {
           participant: participantJid,
           participantName: isGroup ? (messageData.pushName || null) : null,
           ...mediaDetails, ...contactData, ...locationData,
+          instanceId: instanceId,
+          remoteJid: remoteJid,
         };
 
         const [insertedMessage] = await tx.insert(messages).values(newMessage).onConflictDoNothing().returning({ id: messages.id });
@@ -672,7 +684,9 @@ export async function POST(request: Request) {
       }
 
     } else if (body.event === 'messages.update' && body.data) {
+      console.log('[WEBHOOK DEBUG] Processing messages.update event');
       const updates = Array.isArray(body.data) ? body.data : [body.data];
+      console.log('[WEBHOOK DEBUG] Number of updates:', updates.length);
 
       for (const updateData of updates) {
           const messageKeyId = updateData.key?.id || updateData.keyId;
@@ -851,10 +865,104 @@ export async function POST(request: Request) {
              }
         }
 
-    } else if (body.event === 'qrcode.updated' && body.data?.qrcode?.base64) {
-      await safePusherTrigger(pusherChannel, 'qr-update-needed', { instance: instanceName });
-    } else if (body.event === 'connection.update' && body.data?.state) {
-      await safePusherTrigger(pusherChannel, 'connection-status', { status: body.data.state, instance: instanceName });
+    } else if (
+      (body.event === 'qrcode.updated' || body.event === 'qr.updated') &&
+      (body.data?.qrcode?.base64 || body.data?.base64)
+    ) {
+      const qrData = body.data?.qrcode || body.data;
+      const base64 = qrData?.base64;
+      const code = qrData?.code;
+      const pairingCode = qrData?.pairingCode || null;
+
+      try {
+        await cacheDel(CacheKeys.qrCode(instanceName));
+        console.log(`[WEBHOOK DEBUG] Cleared Redis QR cache for ${instanceName} on ${body.event}`);
+      } catch (err: any) {
+        console.error('[WEBHOOK DEBUG] Failed to clear Redis QR cache:', err.message);
+      }
+
+      await db.update(evolutionInstances)
+        .set({ status: 'waiting_qr', updatedAt: new Date() })
+        .where(eq(evolutionInstances.id, instanceId));
+
+      await safePusherTrigger(pusherChannel, 'qr-update-needed', {
+        instance: instanceName,
+        qrcode: {
+          base64: base64,
+          code: code,
+          pairingCode: pairingCode,
+        }
+      });
+
+      await safePusherTrigger(pusherChannel, 'connection-status', {
+        status: 'waiting_qr',
+        instance: instanceName
+      });
+
+    } else if (body.event === 'chat-presence.update' && body.data) {
+      console.log('[WEBHOOK DEBUG] Processing chat-presence.update event');
+      const presenceData = body.data;
+      const remoteJid = normalizeJid(presenceData.id);
+      const presence = presenceData.presence; // composing, recording, paused, available, unavailable
+
+      await safePusherTrigger(pusherChannel, 'chat-presence', {
+        remoteJid,
+        presence,
+        instance: instanceName
+      });
+      await logWebhookEvent(teamId, instanceName, 'chat-presence.update', null, remoteJid, 'processed');
+
+    } else if (body.event === 'connection.update') {
+      console.log('[WEBHOOK DEBUG] Processing connection.update event');
+      const state = body.data?.state || body.data?.status;
+      console.log('[WEBHOOK DEBUG] Connection state:', state);
+      if (state) {
+        let mappedStatus = 'unknown';
+        if (state === 'open' || state === 'connected') mappedStatus = 'open';
+        else if (state === 'close' || state === 'disconnected') mappedStatus = 'close';
+        else if (state === 'connecting') mappedStatus = 'connecting';
+        console.log('[WEBHOOK DEBUG] Mapped status:', mappedStatus);
+
+        const updateFields: any = {
+          status: mappedStatus,
+          updatedAt: new Date()
+        };
+
+        if (mappedStatus === 'open') {
+          updateFields.connectedAt = new Date();
+        }
+
+        if (body.data?.user) {
+          if (body.data.user.name) updateFields.profileName = body.data.user.name;
+          if (body.data.user.id) {
+            updateFields.instanceNumber = body.data.user.id.split('@')[0];
+          }
+        }
+
+        console.log('[WEBHOOK DEBUG] Updating instance in database with:', updateFields);
+        await db.update(evolutionInstances)
+          .set(updateFields)
+          .where(eq(evolutionInstances.id, instanceId));
+
+        try {
+          await cacheDel(CacheKeys.qrCode(instanceName));
+          console.log(`[WEBHOOK DEBUG] Cleared Redis QR cache for ${instanceName} on connection.update`);
+        } catch (err: any) {
+          console.error('[WEBHOOK DEBUG] Failed to clear Redis QR cache:', err.message);
+        }
+
+        console.log('[WEBHOOK DEBUG] Triggering Pusher connection-status event:', mappedStatus);
+        await safePusherTrigger(pusherChannel, 'connection-status', {
+          status: mappedStatus,
+          instance: instanceName
+        });
+
+        if (mappedStatus === 'open') {
+          console.log(`[INSTANCE_CONNECTED] Connected instance ${instanceName}`);
+          console.log('[WEBHOOK DEBUG] Connection is open! Triggering background sync runner...');
+          void triggerSync(teamId, instanceId, instanceName, instance.accessToken || '');
+        }
+      }
     }
 
     return NextResponse.json({ received: true });

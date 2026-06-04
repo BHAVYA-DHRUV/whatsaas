@@ -11,25 +11,53 @@ type ExtendedNextConfig = NextConfig & {
 };
 
 const nextConfig: ExtendedNextConfig = {
+  // In dev, put Turbopack/Next cache on C: drive if project is on slow D: drive
   distDir: process.env.NEXT_DIST_DIR || (process.env.NODE_ENV === 'development' ? '.next' : '.next-prod'),
   outputFileTracingRoot: path.resolve(__dirname),
   output: 'standalone',
   poweredByHeader: false,
   compress: true,
-  reactStrictMode: false,
+  reactStrictMode: true,
   typescript: {
     ignoreBuildErrors: true,
   },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60 * 60 * 24,
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   experimental: {
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-popover'],
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-avatar',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-switch',
+      '@radix-ui/react-slider',
+      '@radix-ui/react-separator',
+      '@radix-ui/react-label',
+      '@radix-ui/react-slot',
+      'sonner',
+      'next-themes',
+    ],
+    // Only enable optimizeCss in production — it slows down dev first-load significantly
+    optimizeCss: process.env.NODE_ENV === 'production',
   },
   webpack(config, { dev, isServer }) {
     if (dev) {
-      config.cache = true;
+      config.cache = {
+        type: 'filesystem',
+        cacheDirectory: process.env.WEBPACK_CACHE_DIR || undefined,
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
       config.devtool = false;
       config.watchOptions = {
         ...config.watchOptions,
@@ -41,9 +69,14 @@ const nextConfig: ExtendedNextConfig = {
           '**/docker/**',
           '**/logs/**',
           '**/dist/**',
+          '**/.git/**',
+          '**/public/**',
+          '**/prisma/**',
+          '**/*.log',
         ],
-        poll: 1000,
-        aggregateTimeout: 300,
+        // Use native file watching (not poll) - poll=1000 causes massive overhead on HDD
+        poll: false,
+        aggregateTimeout: 500,
       };
     }
 

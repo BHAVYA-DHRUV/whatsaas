@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("POSTGRES_URL")
 }
 
 model User {
@@ -25,7 +24,11 @@ model User {
   pushTokens        PushToken[]
   passwordResetTokens PasswordResetToken[]
   callLogs          CallLog[]
+  activityLogs      ActivityLog[]
+  createdInstances  EvolutionInstance[] @relation("CreatedInstances")
 
+  @@index([role])
+  @@index([deletedAt])
   @@map("users")
 }
 
@@ -118,7 +121,12 @@ model Team {
   callCreditTransactions CallCreditTransaction[]
   offlinePaymentRequests OfflinePaymentRequest[]
   executionLogs          ExecutionLog[]
+  webhookEvents          WebhookEvent[]
 
+  @@index([planId])
+  @@index([subscriptionStatus])
+  @@index([trialEndsAt])
+  @@index([createdAt])
   @@map("teams")
 }
 
@@ -133,6 +141,10 @@ model TeamMember {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([teamId])
+  @@index([role])
+  @@index([userId], map: "idx_team_members_user_id")
   @@map("team_members")
 }
 
@@ -147,6 +159,12 @@ model ActivityLog {
   team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([teamId])
+  @@index([userId])
+  @@index([teamId, timestamp], map: "activity_team_timestamp_idx")
+  @@index([userId, timestamp], map: "activity_user_timestamp_idx")
+  @@index([timestamp])
+  @@index([action])
   @@map("activity_logs")
 }
 
@@ -162,6 +180,9 @@ model Invitation {
   team      Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   inviter   User @relation("InvitedByUser", fields: [invitedBy], references: [id], onDelete: Cascade)
 
+  @@index([teamId])
+  @@index([email])
+  @@index([status])
   @@map("invitations")
 }
 
@@ -179,10 +200,19 @@ model EvolutionInstance {
   metaPhoneNumberId   String?  @map("meta_phone_number_id")
   metaWabaId          String?  @map("meta_waba_id")
   metaAppId           String?  @map("meta_app_id")
+  status              String   @default("unknown") @db.VarChar(50)
+  profileName         String?  @map("profile_name")
+  profilePictureUrl   String?  @map("profile_picture_url")
+  connectedAt         DateTime? @map("connected_at")
+  lastSeen            DateTime? @map("last_seen")
+  messagesCount       Int      @default(0) @map("messages_count")
+  connectionType      String?  @map("connection_type") @db.VarChar(50)
+  createdBy           Int?     @map("created_by")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @default(now()) @map("updated_at")
 
   team          Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdByUser User?          @relation("CreatedInstances", fields: [createdBy], references: [id], onDelete: SetNull)
   chats         Chats[]
   wabaTemplates WabaTemplate[]
   campaigns     Campaign[]
@@ -190,6 +220,7 @@ model EvolutionInstance {
   @@unique([teamId, instanceName], name: "teamInstanceNameUnique")
   @@unique([teamId, evolutionInstanceId], name: "teamInstanceIdUnique")
   @@index([teamId], map: "instance_team_id_idx")
+  @@index([teamId], map: "idx_instances_workspace_id")
   @@map("evolution_instances")
 }
 
@@ -216,8 +247,19 @@ model Chats {
   automationSessions AutomationSession[]
   aiSessions         AiSession[]
   executionLogs      ExecutionLog[]
+  callLogs           CallLog[]
 
   @@unique([teamId, remoteJid, instanceId], name: "teamChatInstanceUnique")
+  @@index([teamId])
+  @@index([teamId], map: "idx_conversations_workspace_id")
+  @@index([instanceId])
+  @@index([teamId, instanceId], map: "chats_team_instance_idx")
+  @@index([remoteJid])
+  @@index([teamId, lastMessageTimestamp], map: "chats_team_timestamp_idx")
+  @@index([lastMessageTimestamp])
+  @@index([unreadCount])
+  @@index([teamId, unreadCount], map: "chats_team_unread_idx")
+  @@index([lastCustomerInteraction])
   @@map("chats")
 }
 
@@ -253,6 +295,15 @@ model Message {
   chat             Chats             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   messageReactions MessageReaction[]
 
+  @@index([chatId])
+  @@index([chatId], map: "idx_messages_chat_id")
+  @@index([timestamp], map: "idx_messages_created_at")
+  @@index([chatId, timestamp], map: "messages_chat_timestamp_idx")
+  @@index([timestamp])
+  @@index([status])
+  @@index([fromMe])
+  @@index([isAi])
+  @@index([isAutomation])
   @@map("messages")
 }
 
@@ -353,7 +404,14 @@ model Contact {
   automationSessions AutomationSession[]
 
   @@index([teamId], map: "contact_team_id_idx")
+  @@index([teamId], map: "idx_contacts_workspace_id")
   @@index([chatId], map: "contact_chat_id_idx")
+  @@index([teamId, assignedUserId], map: "contact_team_user_idx")
+  @@index([teamId, assignedDepartmentId], map: "contact_team_dept_idx")
+  @@index([assignedUserId])
+  @@index([assignedDepartmentId])
+  @@index([funnelStageId])
+  @@index([createdAt])
   @@map("contacts")
 }
 
@@ -423,6 +481,10 @@ model Campaign {
   template      WabaTemplate?     @relation(fields: [templateId], references: [id])
   campaignLeads CampaignLead[]
 
+  @@index([teamId])
+  @@index([instanceId])
+  @@index([status])
+  @@index([scheduledAt])
   @@map("campaigns")
 }
 
@@ -436,6 +498,9 @@ model CampaignLead {
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
+  @@index([campaignId])
+  @@index([campaignId, status], map: "campaign_lead_campaign_status_idx")
+  @@index([status])
   @@map("campaign_leads")
 }
 
@@ -454,6 +519,9 @@ model Automation {
   team               Team                @relation(fields: [teamId], references: [id], onDelete: Cascade)
   automationSessions AutomationSession[]
 
+  @@index([teamId])
+  @@index([instanceId])
+  @@index([isActive])
   @@map("automations")
 }
 
@@ -474,6 +542,13 @@ model AutomationSession {
   chat       Chats      @relation(fields: [chatId], references: [id], onDelete: Cascade)
   contact    Contact?   @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
+  @@index([teamId])
+  @@index([automationId])
+  @@index([chatId])
+  @@index([teamId, chatId], map: "automation_session_team_chat_idx")
+  @@index([status])
+  @@index([status, createdAt], map: "automation_session_status_created_idx")
+  @@index([createdAt])
   @@map("automation_sessions")
 }
 
@@ -508,6 +583,9 @@ model AiSession {
   team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
   chat Chats @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
+  @@index([teamId])
+  @@index([chatId])
+  @@index([status])
   @@map("ai_sessions")
 }
 
@@ -563,7 +641,7 @@ model CustomField {
 
 model WebhookEvent {
   id           Int       @id @default(autoincrement())
-  teamId       Int       @map("team_id")
+  teamId       Int?      @map("team_id")
   instanceName String    @map("instance_name") @db.VarChar(255)
   event        String    @db.VarChar(100)
   messageId    String?   @map("message_id")
@@ -573,11 +651,13 @@ model WebhookEvent {
   processedAt  DateTime? @map("processed_at")
   createdAt    DateTime  @default(now()) @map("created_at")
 
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([teamId], map: "webhook_events_team_id_idx")
   @@index([status], map: "webhook_events_status_idx")
+  @@index([teamId, status], map: "webhook_events_team_status_idx")
   @@index([createdAt], map: "webhook_events_created_at_idx")
+  @@index([status, createdAt], map: "webhook_events_status_created_idx")
   @@map("webhook_events")
 }
 

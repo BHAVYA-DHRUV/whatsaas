@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { getTeamForUser } from '@/lib/db/queries';
 import { pathWithoutLocale } from '@/lib/navigation/path-utils';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { Suspense } from 'react';
+import { DashboardSkeleton } from '@/components/dashboard/dashboard-skeleton';
 
 export default async function DashboardGroupLayout({
   children,
@@ -41,7 +43,9 @@ export default async function DashboardGroupLayout({
 
   return (
     <DashboardShell path={path}>
-      {children}
+      <Suspense fallback={<DashboardSkeleton />}>
+        {children}
+      </Suspense>
     </DashboardShell>
   );
 }

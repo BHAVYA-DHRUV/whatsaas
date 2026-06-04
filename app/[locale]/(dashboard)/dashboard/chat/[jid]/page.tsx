@@ -14,6 +14,7 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import Video from "yet-another-react-lightbox/plugins/video";
 import "yet-another-react-lightbox/styles.css";
 import { useTypingIndicator } from '@/lib/realtime/use-typing-indicator';
+import { getChatDisplayName } from '@/lib/inbox/utils';
 import { useChatMessages } from '@/lib/hooks/use-chat-messages';
 import { Chat } from '@/lib/db/schema';
 import { Message, Reaction, QuickReply, NewMessagePayload, ChatDetails, ContactData, TeamData, RecordingStatus, UserData } from '@/components/chat/types';
@@ -49,6 +50,16 @@ interface ChatThemeData {
   darkContactBubbleColor: string;
 }
 
+function jidsMatch(jid1: string | null | undefined, jid2: string | null | undefined): boolean {
+  if (!jid1 || !jid2) return false;
+  if (jid1 === jid2) return true;
+  const isGroup1 = jid1.endsWith('@g.us');
+  const isGroup2 = jid2.endsWith('@g.us');
+  if (isGroup1 !== isGroup2) return false;
+  if (isGroup1) return jid1 === jid2;
+  return jid1.split('@')[0] === jid2.split('@')[0];
+}
+
 export default function ChatPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -74,6 +85,8 @@ export default function ChatPage() {
   const [quotedMessage, setQuotedMessage] = useState<Message | null>(null);
   const [isSyncingMessages, setIsSyncingMessages] = useState(false);
   const [syncDismissed, setSyncDismissed] = useState(false);
+  const [customerPresence, setCustomerPresence] = useState<'composing' | 'recording' | 'available' | 'unavailable' | null>(null);
+  const presenceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,12 +94,16 @@ export default function ChatPage() {
   const [quickRepliesOpen, setQuickRepliesOpen] = useState(false);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [showQuickReplySuggestions, setShowQuickReplySuggestions] = useState(false);
-  const [chatSidebarCollapsed, setChatSidebarCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('chatSidebarCollapsed') === 'true';
+  const [chatSidebarCollapsed, setChatSidebarCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const saved = localStorage.getItem('chatSidebarCollapsed');
+    if (saved === 'true') {
+      setChatSidebarCollapsed(true);
     }
-    return false;
-  });
+  }, []);
 
   const toggleChatSidebar = useCallback(() => {
     setChatSidebarCollapsed(prev => {
@@ -122,10 +139,11 @@ export default function ChatPage() {
   const currentChat = useMemo(() => {
       if (!chats || !remoteJid) return undefined;
       if (instanceIdParam) {
-          return chats.find(c => c.remoteJid === remoteJid && c.instanceId === parseInt(instanceIdParam));
+          const exactMatch = chats.find(c => jidsMatch(c.remoteJid, remoteJid) && c.instanceId === parseInt(instanceIdParam));
+          if (exactMatch) return exactMatch;
       }
 
-      return chats.find(c => c.remoteJid === remoteJid);
+      return chats.find(c => jidsMatch(c.remoteJid, remoteJid));
   }, [chats, remoteJid, instanceIdParam]);
 
   const { peerTyping, notifyTyping } = useTypingIndicator(teamId, currentChat?.id);
@@ -212,9 +230,20 @@ export default function ChatPage() {
     if (clickedIndex !== -1) { setLightboxIndex(clickedIndex); setLightboxOpen(true); }
   };
 
+  const chatDetailsName = useMemo(() => {
+    if (contact?.name) return contact.name;
+    if (currentChat) {
+      return getChatDisplayName({
+        ...currentChat,
+        contact: contact || currentChat.contact
+      });
+    }
+    return chatNumber || 'Chat';
+  }, [contact, currentChat, chatNumber]);
+
   const chatDetails: ChatDetails = {
     remoteJid: remoteJid,
-    name: contact?.name || currentChat?.name || currentChat?.pushName || chatNumber || 'Chat',
+    name: chatDetailsName,
     profilePicUrl: currentChat?.profilePicUrl || null,
     lastCustomerInteraction: currentChat?.lastCustomerInteraction ? new Date(currentChat.lastCustomerInteraction).toISOString() : null,
     integration: activeInstance?.integration || 'WHATSAPP-BAILEYS',
@@ -272,7 +301,7 @@ export default function ChatPage() {
       const activeChat = activeChatRef.current;
       const instanceMatch = !activeChat?.instanceId || !payload.instanceId || activeChat.instanceId === payload.instanceId;
 
-      if (payload.remoteJid === remoteJid && instanceMatch) {
+      if (jidsMatch(payload.remoteJid, remoteJid) && instanceMatch) {
         mutateMessages((currentMessages = []) => {
           if (currentMessages.some(msg => msg.id === payload.id)) return currentMessages;
           const messageWithStatus = { ...payload, status: payload.status || (payload.fromMe ? 'sent' : null) };
@@ -311,8 +340,20 @@ export default function ChatPage() {
 
     const handleContactUpdate = (payload: { remoteJid?: string; chatId?: number }) => {
       const currentId = activeChatRef.current?.id;
-      if ((payload.remoteJid && payload.remoteJid === remoteJid) || (payload.chatId && currentId && payload.chatId === currentId)) {
+      if ((payload.remoteJid && jidsMatch(payload.remoteJid, remoteJid)) || (payload.chatId && currentId && payload.chatId === currentId)) {
         mutateContact();
+      }
+    };
+
+    const handleChatPresence = (payload: { remoteJid: string; presence: 'composing' | 'recording' | 'available' | 'unavailable'; instance?: string }) => {
+      if (jidsMatch(payload.remoteJid, remoteJid)) {
+        setCustomerPresence(payload.presence);
+        if (presenceTimeoutRef.current) clearTimeout(presenceTimeoutRef.current);
+        if (payload.presence === 'composing' || payload.presence === 'recording') {
+          presenceTimeoutRef.current = setTimeout(() => {
+            setCustomerPresence('available');
+          }, 4000);
+        }
       }
     };
 
@@ -321,6 +362,7 @@ export default function ChatPage() {
     channel.bind('chat-status-update', handleChatStatusUpdate);
     channel.bind('message-reaction', handleMessageReaction);
     channel.bind('contact-update', handleContactUpdate);
+    channel.bind('chat-presence', handleChatPresence);
 
     return () => {
       channel.unbind('new-message', handleNewMessage);
@@ -328,6 +370,8 @@ export default function ChatPage() {
       channel.unbind('chat-status-update', handleChatStatusUpdate);
       channel.unbind('message-reaction', handleMessageReaction);
       channel.unbind('contact-update', handleContactUpdate);
+      channel.unbind('chat-presence', handleChatPresence);
+      if (presenceTimeoutRef.current) clearTimeout(presenceTimeoutRef.current);
     };
   }, [teamId, remoteJid, mutateMessages, mutateContact, scrollToBottom, globalMutate]);
 
@@ -645,6 +689,8 @@ export default function ChatPage() {
 
   useEffect(() => {
     setSyncDismissed(false);
+    setCustomerPresence(null);
+    if (presenceTimeoutRef.current) clearTimeout(presenceTimeoutRef.current);
   }, [remoteJid]);
 
   const showSyncBanner = !syncDismissed && currentChat?.instanceId && messages && messages.length === 0 && !isLoading && !error;
@@ -711,6 +757,9 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 min-h-0 min-w-0">
 
         <ChatHeader
+          chatId={currentChat?.id}
+          isPinned={currentChat?.isPinned}
+          isArchived={currentChat?.isArchived}
           chatDetails={chatDetails}
           showSearch={showSearch}
           setShowSearch={setShowSearch}
@@ -721,6 +770,7 @@ export default function ChatPage() {
           isGroup={isGroup}
           peerTyping={peerTyping}
           phone={chatDetails.phone}
+          customerPresence={customerPresence}
         />
 
         {showSyncBanner && (
@@ -804,20 +854,22 @@ export default function ChatPage() {
         </footer>
       </div>
 
-      {chatSidebarCollapsed ? (
+      {isMounted && chatSidebarCollapsed ? (
         <div className="hidden lg:flex w-12 shrink-0 flex-col items-center border-l bg-card py-3">
           <Button variant="ghost" size="icon" onClick={toggleChatSidebar} aria-label="Expand CRM">
             <PanelRightOpen className="h-4 w-4" />
           </Button>
         </div>
-      ) : (
+      ) : (isMounted ? (
         <CrmPanel
           chatDetails={chatDetails}
           chatId={currentChat?.id}
           collapsed={false}
           onToggleCollapse={toggleChatSidebar}
         />
-      )}
+      ) : (
+        <div className="hidden lg:block w-[320px] shrink-0 border-l bg-card" />
+      ))}
 
       <QuickRepliesModal open={quickRepliesOpen} onOpenChange={setQuickRepliesOpen} replies={quickReplies} />
       <TemplateDialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen} onSendTemplate={handleSendTemplate} />

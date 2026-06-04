@@ -1,5 +1,3 @@
-'use client';
-
 import { cn } from '@/lib/utils';
 import { ExternalLink, FileText, Image as ImageIcon, Phone, Play } from 'lucide-react';
 

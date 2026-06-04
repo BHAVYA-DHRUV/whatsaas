@@ -165,6 +165,7 @@ async function persistSendResult(params: PersistParams) {
         lastMessageFromMe: true,
         unreadCount: 0,
         lastMessageStatus: messageStatus,
+        deletedAt: null,
       }).where(eq(chats.id, finalChatId));
     }
 

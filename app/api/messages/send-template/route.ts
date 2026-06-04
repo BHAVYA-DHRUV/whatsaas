@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { evolutionInstances, wabaTemplates, chats, messages } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, like } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 
 export async function POST(request: Request) {
@@ -117,8 +117,19 @@ export async function POST(request: Request) {
 
     await db.transaction(async (tx) => {
       let chatId;
+      let jidCondition;
+      if (recipientJid.endsWith('@g.us')) {
+        jidCondition = eq(chats.remoteJid, recipientJid);
+      } else {
+        const phone = recipientJid.split('@')[0];
+        jidCondition = or(
+          eq(chats.remoteJid, recipientJid),
+          like(chats.remoteJid, `${phone}@%`)
+        );
+      }
+
       const existingChat = await tx.query.chats.findFirst({
-        where: and(eq(chats.teamId, team.id), eq(chats.remoteJid, recipientJid)),
+        where: and(eq(chats.teamId, team.id), jidCondition),
         columns: { id: true }
       });
 
@@ -128,7 +139,8 @@ export async function POST(request: Request) {
           lastMessageText: previewText,
           lastMessageTimestamp: new Date(),
           lastMessageFromMe: true,
-          lastMessageStatus: 'sent'
+          lastMessageStatus: 'sent',
+          deletedAt: null
         }).where(eq(chats.id, chatId));
       } else {
         const [newChat] = await tx.insert(chats).values({

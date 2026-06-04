@@ -40,7 +40,7 @@ function formatChatRow(chat: ChatWithContact) {
     ? (() => {
         const formatted = {
           ...contact,
-          tags: contact.contactTags.map((ct) => ({
+          tags: contact.contactTags.map((ct: any) => ({
             id: ct.tag.id,
             name: ct.tag.name,
             label: ct.tag.name,
@@ -77,6 +77,28 @@ function formatChatRow(chat: ChatWithContact) {
   };
 }
 
+function getDisplayName(chat: ChatWithContact): string {
+  const phone = chat.remoteJid.split('@')[0];
+  const contactName = chat.contact?.name;
+  
+  if (contactName && contactName !== phone && contactName !== `+${phone}`) {
+    return contactName;
+  }
+
+  const hasReadableName = chat.name && chat.name !== phone && chat.name !== `+${phone}`;
+  if (hasReadableName) {
+    return chat.name!;
+  }
+
+  return (
+    chat.pushName ||
+    chat.name ||
+    chat.contact?.name ||
+    phone ||
+    'Unknown'
+  );
+}
+
 export async function getTeamChatsForInbox(
   permCtx: PermissionContext,
   options: Pick<ListChatsOptions, 'scope' | 'limit'> = {}
@@ -92,5 +114,21 @@ export async function getTeamChatsForInbox(
     : await getDepartmentIdsForUser(permCtx.userId);
 
   const filtered = filterChatsByPermissions(teamChats, permCtx, departmentIds);
-  return filtered.map(formatChatRow);
+
+  const nameMap = new Map<string, typeof filtered[number]>();
+  const deduplicated: typeof filtered = [];
+  for (const chat of filtered) {
+    const isGroup = chat.remoteJid.endsWith('@g.us');
+    const name = getDisplayName(chat);
+    const phone = chat.remoteJid.split('@')[0];
+    const isRawNumber = name === phone || name === `+${phone}` || /^\+?\d+$/.test(name);
+    const key = isGroup ? chat.remoteJid : (isRawNumber ? phone : name);
+    
+    if (!nameMap.has(key)) {
+      nameMap.set(key, chat);
+      deduplicated.push(chat);
+    }
+  }
+
+  return deduplicated.map(formatChatRow);
 }

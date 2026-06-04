@@ -2,7 +2,8 @@ import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle'; 
 import { getTeamForUser } from '@/lib/db/queries'; 
 import { chats, messages } from '@/lib/db/schema'; 
-import { eq, and, asc, desc, lt, sql } from 'drizzle-orm';
+import { eq, and, or, like, asc, desc, lt, sql } from 'drizzle-orm';
+import { formatMessageForFrontend } from '@/lib/db/messages';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,9 +34,20 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'jid (remoteJid) is required' }, { status: 400 });
         }
 
+        let jidCondition;
+        if (jid.endsWith('@g.us')) {
+            jidCondition = eq(chats.remoteJid, jid);
+        } else {
+            const phone = jid.split('@')[0];
+            jidCondition = or(
+                eq(chats.remoteJid, jid),
+                like(chats.remoteJid, `${phone}@%`)
+            );
+        }
+
         const conditions = [
             eq(chats.teamId, team.id),
-            eq(chats.remoteJid, jid)
+            jidCondition
         ];
 
         if (instanceId) {
@@ -86,7 +98,7 @@ export async function GET(request: NextRequest) {
         .where(eq(messages.chatId, chat.id));
 
       return NextResponse.json({
-        messages: ordered,
+        messages: ordered.map(msg => formatMessageForFrontend(msg)),
         hasMore: before ? ordered.length === limit : count > ordered.length,
         total: count,
       });
@@ -108,7 +120,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(chatMessages);
+    return NextResponse.json(chatMessages.map(msg => formatMessageForFrontend(msg)));
 
   } catch (error: any) {
     console.error('Error fetching messages:', error.message);

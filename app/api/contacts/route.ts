@@ -4,7 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { checkRoutePermission } from '@/lib/auth/permissions-guard';
 import { ActivityType, chats, contacts, contactTags } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, like } from 'drizzle-orm';
 import { logActivity } from '@/lib/db/activity';
 import { enforceLimit } from '@/lib/limits';
 
@@ -18,11 +18,7 @@ export async function POST(request: NextRequest) {
     if (!team || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    try {
-      await enforceLimit(team.id, 'contacts');
-    } catch (e: any) {
-        return NextResponse.json({ error: e.message }, { status: 403 });
-    }
+    // Limit check removed - unlimited free plan
 
     const body = await request.json();
     const {
@@ -40,10 +36,21 @@ export async function POST(request: NextRequest) {
     }
 
     
+    let jidCondition;
+    if (jid.endsWith('@g.us')) {
+        jidCondition = eq(chats.remoteJid, jid);
+    } else {
+        const phone = jid.split('@')[0];
+        jidCondition = or(
+            eq(chats.remoteJid, jid),
+            like(chats.remoteJid, `${phone}@%`)
+        );
+    }
+
     const chat = await db.query.chats.findFirst({
         where: and(
             eq(chats.teamId, team.id),
-            eq(chats.remoteJid, jid)
+            jidCondition
         ),
         columns: { id: true }
     });

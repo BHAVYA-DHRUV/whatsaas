@@ -4,6 +4,22 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { evolutionInstances, chats, contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 
+function normalizeJid(jid: string): string {
+  if (!jid) return '';
+  if (jid.includes('@g.us')) return jid;
+  if (jid.includes('@s.whatsapp.net')) {
+    const [user] = jid.split('@');
+    const cleanUser = user.split(':')[0];
+    return `${cleanUser}@s.whatsapp.net`;
+  }
+  if (jid.includes('@lid')) {
+    const [user] = jid.split('@');
+    const cleanUser = user.split(':')[0];
+    return `${cleanUser}@lid`;
+  }
+  return jid;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const team = await getTeamForUser();
@@ -37,13 +53,16 @@ export async function POST(request: NextRequest) {
           ? new Date(chat.lastMessageTimestamp)
           : null;
 
+        const normalizedJid = normalizeJid(chat.remoteJid);
+        const nameToSave = chat.name || normalizedJid.split('@')[0];
+
         const [insertedChat] = await db
           .insert(chats)
           .values({
             teamId: team.id,
             instanceId: instance.id,
-            remoteJid: chat.remoteJid,
-            name: chat.name || chat.remoteJid.split('@')[0],
+            remoteJid: normalizedJid,
+            name: nameToSave,
             profilePicUrl: chat.profilePicUrl || null,
             lastMessageText: chat.lastMessageText || null,
             lastMessageTimestamp: lastMessageTs,
@@ -51,7 +70,15 @@ export async function POST(request: NextRequest) {
             unreadCount: 0,
             lastMessageStatus: null,
           })
-          .onConflictDoNothing()
+          .onConflictDoUpdate({
+            target: [chats.teamId, chats.remoteJid, chats.instanceId],
+            set: {
+              name: nameToSave,
+              profilePicUrl: chat.profilePicUrl || chats.profilePicUrl,
+              lastMessageText: chat.lastMessageText || chats.lastMessageText,
+              lastMessageTimestamp: lastMessageTs || chats.lastMessageTimestamp,
+            }
+          })
           .returning({ id: chats.id });
 
         imported++;
@@ -63,9 +90,14 @@ export async function POST(request: NextRequest) {
               .values({
                 teamId: team.id,
                 chatId: insertedChat.id,
-                name: chat.name || chat.remoteJid.split('@')[0],
+                name: nameToSave,
               })
-              .onConflictDoNothing();
+              .onConflictDoUpdate({
+                target: [contacts.chatId],
+                set: {
+                  name: nameToSave,
+                }
+              });
             contactsSaved++;
           } catch {
           }

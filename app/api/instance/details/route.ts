@@ -3,7 +3,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle'; 
 import { evolutionInstances } from '@/lib/db/schema'; 
 import { eq } from 'drizzle-orm';
-import { getEvolutionConfig } from '@/lib/whatsapp/config';
+import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
 
 type InstanceDetailItem = {
     dbId: number;
@@ -20,12 +20,6 @@ type InstanceDetailItem = {
 
 export async function GET(request: Request) {
   try {
-    const evoConfig = await getEvolutionConfig();
-    if (!evoConfig.apiKey) {
-        console.error("API Key master not configured on server.");
-        throw new Error("Server configuration incomplete.");
-    }
-
     const team = await getTeamForUser();
     if (!team) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -40,11 +34,19 @@ export async function GET(request: Request) {
       return NextResponse.json([]);
     }
 
-    const results = await Promise.all(dbInstances.map(async (dbInstance) => {
-        let status = 'unknown';
-        let profileInfo: Partial<InstanceDetailItem> = { owner: null, profileName: null, profilePictureUrl: null };
+    // Use a fast timeout for Evolution API checks so page loads quickly
+    const EVOLUTION_TIMEOUT_MS = 5000;
 
-        
+    const results = await Promise.all(dbInstances.map(async (dbInstance) => {
+        let status = dbInstance.status || 'unknown';
+        let profileInfo: Partial<InstanceDetailItem> = {
+          owner: null,
+          profileName: dbInstance.profileName || null,
+          profilePictureUrl: null,
+          number: dbInstance.instanceNumber || null,
+        };
+
+        // Meta Cloud connection checking path
         if (dbInstance.integration === 'META-CLOUD') {
             try {
                 const token = dbInstance.metaToken || dbInstance.accessToken;
@@ -52,7 +54,7 @@ export async function GET(request: Request) {
                 if (token && phoneId) {
                     const metaResponse = await fetch(
                       `https://graph.facebook.com/v21.0/${phoneId}?fields=verified_name,display_phone_number,quality_rating`,
-                      { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(10000) }
+                      { headers: { 'Authorization': `Bearer ${token}` }, signal: AbortSignal.timeout(EVOLUTION_TIMEOUT_MS) }
                     );
                     if (metaResponse.ok) {
                         const metaData = await metaResponse.json();
@@ -67,7 +69,7 @@ export async function GET(request: Request) {
                     }
                 }
             } catch {
-                status = 'error';
+                // Fall through to use DB status
             }
 
             return {
@@ -85,64 +87,60 @@ export async function GET(request: Request) {
             } as InstanceDetailItem;
         }
 
-        
-        const identifier = dbInstance.evolutionInstanceId || dbInstance.instanceName;
-
+        // Evolution API connection checking path — use a fast timeout
         try {
-            const stateResponse = await fetch(
-              `${evoConfig.apiUrl}/instance/connectionState/${dbInstance.instanceName}`,
-              { headers: { 'apikey': evoConfig.apiKey }, cache: 'no-store', signal: AbortSignal.timeout(10000) }
-            );
+            const stateData = await Promise.race([
+              EvolutionSDK.getConnectionState(dbInstance.instanceName),
+              new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), EVOLUTION_TIMEOUT_MS)),
+            ]);
+            
+            const liveStatus = (stateData as any)?.instance?.state || (stateData as any)?.state || null;
+            if (liveStatus) {
+              status = liveStatus;
+            }
 
-            if (stateResponse.ok) {
-                const stateData = await stateResponse.json();
-                status = stateData.instance?.state || 'unknown';
-
-                if (status === 'open') {
-                    const detailsResponse = await fetch(
-                      `${evoConfig.apiUrl}/instance/fetchInstances?instanceId=${identifier}`,
-                      { headers: { 'apikey': evoConfig.apiKey }, cache: 'no-store', signal: AbortSignal.timeout(10000) }
-                    );
-                    if (detailsResponse.ok) {
-                        const detailsArray = await detailsResponse.json();
-                        if (detailsArray && detailsArray.length > 0) {
-                            const evoInstance = detailsArray[0];
-                            profileInfo = {
-                                owner: evoInstance?.owner || null,
-                                profileName: evoInstance?.profileName || null,
-                                profilePictureUrl: evoInstance?.profilePicUrl || null,
-                                number: evoInstance?.number || null,
-                                integration: evoInstance?.integration || null,
-                            };
-                        }
-                    }
+            if (status === 'open') {
+                try {
+                  const identifier = dbInstance.evolutionInstanceId || dbInstance.instanceName;
+                  const detailsArray = await Promise.race([
+                    EvolutionSDK.fetchInstances(identifier),
+                    new Promise<null>((_, reject) => setTimeout(() => reject(new Error('timeout')), EVOLUTION_TIMEOUT_MS)),
+                  ]);
+                  if (Array.isArray(detailsArray) && detailsArray.length > 0) {
+                    const evoInstance = detailsArray[0];
+                    profileInfo = {
+                        owner: evoInstance?.owner || null,
+                        profileName: evoInstance?.profileName || dbInstance.profileName || null,
+                        profilePictureUrl: evoInstance?.profilePicUrl || null,
+                        number: evoInstance?.number || dbInstance.instanceNumber || null,
+                        integration: evoInstance?.integration || null,
+                    };
+                  }
+                } catch {
+                  // Use DB fallback for profile info
                 }
-            } else if (stateResponse.status === 404) {
-                 status = 'not_found';
-            } else {
-                status = 'error';
             }
         } catch (fetchError: any) {
-            console.error(`Error fetching data for ${dbInstance.instanceName}: ${fetchError.message}`);
-            status = 'error';
+            // On timeout or error, fall back to DB status (don't block page load)
+            if (fetchError.message?.includes('404')) {
+                status = 'close';
+            }
+            // else: keep the DB status (it may be 'open', 'connecting', etc.)
         }
 
-        if (status !== 'not_found') {
-            return {
-                dbId: dbInstance.id,
-                instanceName: dbInstance.displayName || dbInstance.instanceName,
-                internalName: dbInstance.instanceName,
-                evolutionInstanceId: dbInstance.evolutionInstanceId,
-                status: status,
-                token: dbInstance.accessToken,
-                owner: profileInfo.owner ?? null,
-                profileName: profileInfo.profileName ?? null,
-                number: profileInfo.number ?? null,
-                integration: profileInfo.integration ?? null,
-                profilePictureUrl: profileInfo.profilePictureUrl ?? null,
-            } as InstanceDetailItem;
-        }
-        return null;
+        return {
+            dbId: dbInstance.id,
+            instanceName: dbInstance.displayName || dbInstance.instanceName,
+            internalName: dbInstance.instanceName,
+            evolutionInstanceId: dbInstance.evolutionInstanceId,
+            status: status,
+            token: dbInstance.accessToken,
+            owner: profileInfo.owner ?? null,
+            profileName: profileInfo.profileName ?? null,
+            number: profileInfo.number ?? dbInstance.instanceNumber ?? null,
+            integration: profileInfo.integration ?? dbInstance.integration ?? null,
+            profilePictureUrl: profileInfo.profilePictureUrl ?? null,
+        } as InstanceDetailItem;
     }));
 
     const instanceDetailsList = results.filter((item): item is InstanceDetailItem => item !== null);

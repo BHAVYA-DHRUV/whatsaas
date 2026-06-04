@@ -19,8 +19,19 @@ export async function GET(request: NextRequest) {
     if (!jid) return NextResponse.json({ error: 'JID is required' }, { status: 400 });
 
     
+    let jidCondition;
+    if (jid.endsWith('@g.us')) {
+      jidCondition = eq(chats.remoteJid, jid);
+    } else {
+      const phone = jid.split('@')[0];
+      jidCondition = or(
+        eq(chats.remoteJid, jid),
+        like(chats.remoteJid, `${phone}@%`)
+      );
+    }
+
     const chat = await db.query.chats.findFirst({
-      where: and(eq(chats.teamId, team.id), eq(chats.remoteJid, jid)),
+      where: and(eq(chats.teamId, team.id), jidCondition),
       columns: { id: true }
     });
 

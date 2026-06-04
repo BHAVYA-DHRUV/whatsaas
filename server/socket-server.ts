@@ -21,8 +21,16 @@ const io = new Server(httpServer, {
     credentials: true,
   },
   transports: ['websocket', 'polling'],
-  pingInterval: 10_000,
-  pingTimeout: 5_000,
+  pingInterval: 25_000,
+  pingTimeout: 20_000,
+  maxHttpBufferSize: 1e6,
+  allowUpgrades: true,
+  perMessageDeflate: {
+    threshold: 1024,
+    zlibDeflateOptions: {
+      level: 3,
+    },
+  },
 });
 
 const PORT = Number(process.env.SOCKET_PORT || 3001);
@@ -151,7 +159,7 @@ function setupRedisSubscriber() {
 setupRedisSubscriber();
 
 io.on('connection', (socket) => {
-  logger.info(`[socket-server] Client connected: socketId=${socket.id}`);
+  logger.info(`[SOCKET_CONNECTED] Client connected: socketId=${socket.id}`);
 
   socket.on('join-room', (roomName: unknown, callback?: (payload: { ok: boolean }) => void) => {
     if (!isValidRoomName(roomName)) {
@@ -165,6 +173,18 @@ io.on('connection', (socket) => {
 
   socket.on('heartbeat', (callback?: (payload: { ok: boolean; ts: number }) => void) => {
     callback?.({ ok: true, ts: Date.now() });
+  });
+
+  socket.on('typing', (payload: any) => {
+    if (payload && isValidRoomName(payload.room)) {
+      socket.to(payload.room).emit(`${payload.room}:typing`, payload);
+    }
+  });
+
+  socket.on('presence-update', (payload: any) => {
+    if (payload && isValidRoomName(payload.room)) {
+      socket.to(payload.room).emit(`${payload.room}:presence-update`, payload);
+    }
   });
 
   socket.on('disconnect', (reason) => {

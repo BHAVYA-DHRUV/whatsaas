@@ -4,12 +4,14 @@ import { db } from '@/lib/db/drizzle';
 import { evolutionInstances } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
+import { QRManager } from '@/lib/whatsapp/qr-manager';
+import { pusherServer } from '@/lib/pusher-server';
+import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
 
 function isEvolutionUnavailableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
   return /fetch failed|ECONNREFUSED|ETIMEDOUT|timed out|Unable to connect/i.test(message);
 }
-
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,34 +38,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Instance not found or unauthorized' }, { status: 404 });
     }
 
-    if (!evoConfig.apiKey) throw new Error("Evolution API key is not configured.");
-
-    
-    let logoutResponse: Response;
+    // 1. Terminate Evolution session remotely (gracefully)
     try {
-      logoutResponse = await fetch(
-        `${evoConfig.apiUrl}/instance/logout/${instanceName}`,
-        {
-          method: 'DELETE',
-          headers: { 'apikey': evoConfig.apiKey },
-          signal: AbortSignal.timeout(10000),
-        }
-      );
-    } catch (error) {
-      if (isEvolutionUnavailableError(error)) {
-        return NextResponse.json({ error: `Evolution API is unavailable at ${evoConfig.apiUrl}.` }, { status: 503 });
+      if (evoConfig.apiKey) {
+        await fetch(
+          `${evoConfig.apiUrl}/instance/logout/${instanceName}`,
+          {
+            method: 'DELETE',
+            headers: { 'apikey': evoConfig.apiKey },
+            signal: AbortSignal.timeout(10000),
+          }
+        );
       }
-      throw error;
+    } catch (evoErr) {
+      console.warn(`[INSTANCE_LOGOUT] Evolution API logout call warning for ${instanceName}:`, evoErr);
     }
 
-    const data = await logoutResponse.json();
+    // 2. Clear cached QR codes in memory and Redis
+    await QRManager.invalidateQR(instanceName);
 
-    if (!logoutResponse.ok) {
-        console.error(`Failed to disconnect ${instanceName} via API:`, data);
-        return NextResponse.json({ error: data.error || data.response?.message || 'Failed to disconnect from Evolution API.' }, { status: logoutResponse.status });
+    // 3. Update database status to close
+    await db.update(evolutionInstances)
+      .set({ status: 'close', updatedAt: new Date() })
+      .where(eq(evolutionInstances.id, dbInstance.id));
+
+    // 4. Broadcast connection status change via Pusher/Socket
+    const pusherChannel = `team-${team.id}`;
+    try {
+      await pusherServer.trigger(pusherChannel, 'connection-status', {
+        status: 'close',
+        instance: instanceName
+      });
+    } catch (pushErr) {
+      console.error('[INSTANCE_LOGOUT] Pusher status broadcast error:', pushErr);
     }
 
-    return NextResponse.json({ message: data.response?.message || 'Instance disconnected successfully.' });
+    // 5. Structured logging
+    console.log(`[INSTANCE_LOGOUT] Disconnected instance ${instanceName}`);
+
+    return NextResponse.json({ success: true, message: 'Instance disconnected successfully.' });
 
   } catch (error: any) {
     console.error('Error in API /api/instance/logout:', error.message);

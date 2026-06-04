@@ -33,7 +33,7 @@ const TABS = [
 
 export function ChatFilters({ activeTab, setActiveTab }: ChatFiltersProps) {
   return (
-    <div className="flex gap-1 overflow-x-auto px-3 py-2 border-b bg-background/80 scrollbar-none">
+    <div className="flex gap-1 px-3 py-2 overflow-x-auto border-b bg-background/80 scrollbar-none">
       {TABS.map((tab) => (
         <button
           key={tab.id}
