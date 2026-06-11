@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/drizzle';
 import { pushTokens, teamMembers } from '@/lib/db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 interface ExpoPushMessage {
   to: string;

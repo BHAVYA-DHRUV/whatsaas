@@ -5,7 +5,7 @@ import { evolutionInstances } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
 import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
-import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
+import { cacheGet, cacheSet, cacheDel } from '@/lib/cache/redis-cache';
 import { QRManager } from '@/lib/whatsapp/qr-manager';
 import { pusherServer } from '@/lib/pusher-server';
 
@@ -261,8 +261,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (!evoConfig.apiKey) throw new Error("Evolution API key is not configured.");
-
-    const cacheKey = CacheKeys.qrCode(instanceName);
 
     // Check memory / Redis cache via QRManager
     const cached = await QRManager.getQR(instanceName);

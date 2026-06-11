@@ -10,6 +10,7 @@ import path from 'path';
 import os from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import ffmpeg from 'fluent-ffmpeg';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://localhost:8080";
 
@@ -193,30 +194,54 @@ export async function POST(request: NextRequest) {
         delete evolutionPayload.quoted;
     }
 
-    const evolutionResponse = await fetch(
-      `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${instanceName}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': accessToken,
-        },
-        body: JSON.stringify(evolutionPayload),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    const evolutionData = await evolutionResponse.json() as any;
-
-    const sendFailed = !evolutionResponse.ok || !evolutionData?.key?.id;
+    let evolutionResponse: Response | null = null;
+    let evolutionData: any = null;
+    let sendFailed = true;
     let errorMsg: string | null = null;
 
-    if (!evolutionResponse.ok) {
+    // Retry sending audio up to 3 times
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        evolutionResponse = await fetch(
+          `${EVOLUTION_API_URL}/message/sendWhatsAppAudio/${instanceName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': accessToken,
+            },
+            body: JSON.stringify(evolutionPayload),
+            signal: AbortSignal.timeout(10000),
+          }
+        );
+
+        const responseText = await evolutionResponse.text();
+        try {
+          evolutionData = JSON.parse(responseText);
+        } catch {
+          evolutionData = { error: responseText || 'Unknown response format' };
+        }
+
+        if (evolutionResponse.ok && evolutionData && !evolutionData.error && evolutionData.status !== 'ERROR' && evolutionData.key?.id) {
+          sendFailed = false;
+          break;
+        }
+
+        errorMsg = evolutionData?.message || evolutionData?.error || 'Failed to send audio via Evolution API.';
+        console.warn(`[Audio Send] Attempt ${attempt} failed for ${instanceName}: ${errorMsg}`);
+      } catch (err: any) {
+        errorMsg = err.message || 'Network timeout or connection error';
+        console.warn(`[Audio Send] Attempt ${attempt} error for ${instanceName}: ${errorMsg}`);
+      }
+
+      if (attempt < 3) {
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
+
+    if (sendFailed) {
       console.error(`Evolution API Error (sendAudio) for ${instanceName}:`, evolutionData);
-      errorMsg = evolutionData?.error || 'Failed to send audio via Evolution API.';
-    } else if (!evolutionData?.key?.id) {
-      console.error('Unexpected Evolution response (no key.id):', evolutionData);
-      errorMsg = 'Message sent but ID not returned.';
     }
 
     const isGroupChat = recipientJid.endsWith('@g.us');
@@ -238,8 +263,8 @@ export async function POST(request: NextRequest) {
              lastMessageFromMe: true,
              unreadCount: 0,
              lastMessageStatus: messageStatus
-         }).returning({ id: chats.id });
-         finalChatId = Number((newChat as any).id);
+          }).returning({ id: chats.id });
+          finalChatId = Number((newChat as any).id);
       } else {
          await tx.update(chats)
             .set({
@@ -253,8 +278,8 @@ export async function POST(request: NextRequest) {
             .where(eq(chats.id, finalChatId));
       }
 
-      const messageId = sendFailed ? `error_${Date.now()}` : evolutionData.key.id;
-      const audioMsg = sendFailed ? null : evolutionData.message?.audioMessage;
+      const messageId = (sendFailed || !evolutionData?.key?.id) ? `error_${Date.now()}` : evolutionData.key.id;
+      const audioMsg = (sendFailed || !evolutionData?.message) ? null : evolutionData.message?.audioMessage;
       const finalMediaUrl = publicMediaUrl || audioMsg?.url || null;
 
       const dbQuotedMessageId = quotedMessageData?.id || null;
@@ -271,9 +296,9 @@ export async function POST(request: NextRequest) {
         mediaUrl: finalMediaUrl,
         mediaMimetype: 'audio/mpeg',
         mediaCaption: null,
-        mediaFileLength: sendFailed ? null : (audioMsg?.fileLength?.toString() || null),
-        mediaSeconds: sendFailed ? null : (audioMsg?.seconds || null),
-        mediaIsPtt: sendFailed ? true : (audioMsg?.ptt ?? true),
+        mediaFileLength: (sendFailed || !audioMsg) ? null : (audioMsg?.fileLength?.toString() || null),
+        mediaSeconds: (sendFailed || !audioMsg) ? null : (audioMsg?.seconds || null),
+        mediaIsPtt: (sendFailed || !audioMsg) ? true : (audioMsg?.ptt ?? true),
         contactName: null,
         contactVcard: null,
         locationLatitude: null,
@@ -293,6 +318,8 @@ export async function POST(request: NextRequest) {
 
       savedMessage = insertedMessage || newMessageData;
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(formatMessageForFrontend(savedMessage));
 

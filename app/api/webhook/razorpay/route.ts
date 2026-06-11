@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { paymentGateways, plans, teams } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { plans, teams } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 import { getGatewayByType } from '@/lib/payments';
 import { checkRateLimit, getClientIp, RATE_LIMITS } from '@/lib/rate-limit';
 

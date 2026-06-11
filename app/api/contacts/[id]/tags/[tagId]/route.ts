@@ -5,9 +5,10 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { contactTags, contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 
-export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string, tagId: string }> }) {
+export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string, tagId: string }> }) {
   try {
     const team = await getTeamForUser();
     if (!team) {
@@ -35,6 +36,8 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     await pusherServer.trigger(`team-${team.id}`, 'contact-update', {
       chatId: contact?.chatId,
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json({ success: true });
 

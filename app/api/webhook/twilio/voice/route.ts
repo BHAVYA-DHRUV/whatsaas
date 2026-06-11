@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { twilioConfigs, teamPhoneNumbers } from '@/lib/db/schema';
+import { teamPhoneNumbers } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
 

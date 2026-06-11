@@ -5,6 +5,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { tags, contactTags, contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     await pusherServer.trigger(`team-${team.id}`, 'contact-update', {
       chatId: contact?.chatId,
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json({ success: true, link: newLink, tag: tag });
 

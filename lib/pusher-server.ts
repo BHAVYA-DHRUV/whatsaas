@@ -1,37 +1,14 @@
 import PusherServer from 'pusher';
-import IORedis from 'ioredis';
+import { getPublisherConnection } from '@/lib/redis/connection-manager';
 
 type PusherLike = {
   trigger: (channel: string, event: string, data: unknown) => Promise<unknown>;
 };
 
-let redisPublisher: IORedis | null = null;
-
-function getRedisPublisher(): IORedis | null {
-  if (redisPublisher !== null) return redisPublisher;
-  const url = process.env.REDIS_URL;
-  if (!url) return null;
-  try {
-    redisPublisher = new IORedis(url, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-      lazyConnect: true,
-      connectTimeout: 3000,
-      retryStrategy: (times: number) => (times > 2 ? null : Math.min(times * 200, 600)),
-    });
-    redisPublisher.on('error', () => {
-      /* optional pub/sub — Pusher path still works */
-    });
-    return redisPublisher;
-  } catch (err: any) {
-    console.error('[pusher-server] Failed to connect to Redis publisher:', err.message);
-    return null;
-  }
-}
 
 async function invalidateTeamCacheFromChannel(channel: string, event: string) {
-  if (event !== 'new-message' && event !== 'chat-list-update') return;
-  const match = /^team-(\d+)$/.exec(channel);
+  if (event !== 'new-message' && event !== 'chat-list-update' && event !== 'message-update' && event !== 'message-delete') return;
+  const match = /^team[-:](\d+)$/.exec(channel);
   if (!match) return;
   const { cacheInvalidateTeam } = await import('@/lib/cache/redis-cache');
   void cacheInvalidateTeam(Number(match[1]));
@@ -39,7 +16,7 @@ async function invalidateTeamCacheFromChannel(channel: string, event: string) {
 
 const noopPusher: PusherLike = {
   trigger: async (channel, event, data) => {
-    const pub = getRedisPublisher();
+    const pub = getPublisherConnection();
     if (pub) {
       try {
         await pub.publish('whats-saas-realtime', JSON.stringify({ room: channel, event, data }));
@@ -96,7 +73,7 @@ function createPusher(): PusherLike {
         }
       }
 
-      const pub = getRedisPublisher();
+      const pub = getPublisherConnection();
       if (pub) {
         try {
           await pub.publish('whats-saas-realtime', JSON.stringify({ room: channel, event, data }));

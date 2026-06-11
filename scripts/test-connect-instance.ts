@@ -19,7 +19,7 @@ async function main() {
     const body = await res.text();
     console.log('Response body:', body);
   } catch (err) {
-    console.error('Fetch error:', err.message);
+    console.error('Fetch error:', err instanceof Error ? err.message : String(err));
   }
 }
 

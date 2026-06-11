@@ -1,17 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import {
-  Paperclip,
+  Plus,
+  Camera,
+  Image as ImageIcon,
+  FileText,
+  Headphones,
+  User,
+  MapPin,
   Mic,
   Send,
   Smile,
   Square,
-  Image as ImageIcon,
   X,
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -33,6 +39,8 @@ type Props = {
   onSendText: () => void;
   onSendAudio: () => void;
   onSendAttachment: (file: File) => void;
+  onSendLocation?: () => void;
+  onShareContact?: () => void;
   audioUrl: string | null;
   isAudioPlaying: boolean;
   toggleAudioPlayback: () => void;
@@ -50,7 +58,104 @@ type Props = {
   isGroup?: boolean;
 };
 
-function PopoverEmoji({ onEmojiClick }: { onEmojiClick: (d: EmojiClickData) => void }) {
+const PopoverAttachment = memo(function PopoverAttachment({
+  handleFileIconClick,
+  onSendLocation,
+  onShareContact
+}: {
+  handleFileIconClick: (accept: string) => void;
+  onSendLocation?: () => void;
+  onShareContact?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        onClick={() => setOpen((o) => !o)}
+        className={cn("h-9 w-9 rounded-full transition-transform duration-200 hover:bg-muted", open && "rotate-45 text-primary bg-muted")}
+      >
+        <Plus className="h-5 w-5" />
+      </Button>
+      {open && (
+        <div className="absolute bottom-full left-0 z-50 mb-3 w-52 rounded-2xl border bg-popover p-2 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-150">
+          <div className="flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => { handleFileIconClick('image/*,video/*'); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-500 text-white">
+                <ImageIcon className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Photos & Videos</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { handleFileIconClick('image/*;capture=camera'); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-pink-500 text-white">
+                <Camera className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Camera</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { handleFileIconClick('.pdf,.doc,.docx,.xls,.xlsx,.txt'); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-purple-500 text-white">
+                <FileText className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Document</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { handleFileIconClick('audio/*'); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-orange-500 text-white">
+                <Headphones className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Audio</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { if (onShareContact) onShareContact(); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-white">
+                <User className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Contact</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { if (onSendLocation) onSendLocation(); setOpen(false); }}
+              className="flex items-center gap-3 w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-muted transition-colors cursor-pointer"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <MapPin className="h-4 w-4" />
+              </div>
+              <span className="font-medium text-foreground">Location</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+const PopoverEmoji = memo(function PopoverEmoji({ onEmojiClick }: { onEmojiClick: (d: EmojiClickData) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">
@@ -64,9 +169,9 @@ function PopoverEmoji({ onEmojiClick }: { onEmojiClick: (d: EmojiClickData) => v
       )}
     </div>
   );
-}
+});
 
-export function ChatInput({
+export const ChatInput = memo(function ChatInput({
   isInternalNote,
   setIsInternalNote,
   newMessage,
@@ -79,6 +184,8 @@ export function ChatInput({
   onSendText,
   onSendAudio,
   onSendAttachment,
+  onSendLocation,
+  onShareContact,
   audioUrl,
   isWindowExpired,
   onOpenTemplateDialog,
@@ -88,12 +195,20 @@ export function ChatInput({
   showQuickReplySuggestions,
   filteredQuickReplies,
 }: Props) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current && !isWindowExpired) {
+      inputRef.current.focus();
+    }
+  }, [isInternalNote, isWindowExpired]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSendText();
     }
-  };
+  }, [onSendText]);
 
   return (
     <div className="space-y-2 p-3">
@@ -159,22 +274,23 @@ export function ChatInput({
               e.target.value = '';
             }}
           />
-          <div className="flex gap-1">
-            <Button type="button" variant="ghost" size="icon" onClick={() => handleFileIconClick('image/*')}>
-              <ImageIcon className="h-4 w-4" />
-            </Button>
-            <Button type="button" variant="ghost" size="icon" onClick={() => handleFileIconClick('*/*')}>
-              <Paperclip className="h-4 w-4" />
-            </Button>
+          <div className="flex gap-1 items-center">
+            <PopoverAttachment
+              handleFileIconClick={handleFileIconClick}
+              onSendLocation={onSendLocation}
+              onShareContact={onShareContact}
+            />
             <PopoverEmoji onEmojiClick={onEmojiClick} />
           </div>
           <Textarea
+            ref={inputRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={isInternalNote ? 'Internal note…' : 'Type a message…'}
             className="min-h-[44px] max-h-32 flex-1 resize-none"
             disabled={isWindowExpired && !isInternalNote}
+            autoFocus
           />
           {newMessage.trim() ? (
             <Button type="button" size="icon" onClick={onSendText}>
@@ -189,4 +305,4 @@ export function ChatInput({
       )}
     </div>
   );
-}
+});

@@ -25,7 +25,6 @@ import type { MemberPermissions } from '@/lib/permissions';
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 type MembershipData = { role: string; permissions: MemberPermissions };
 
-const RESTRICTED_SETTINGS: string[] = ['/settings/connect', '/settings/ai', '/settings/voice', '/settings/developers'];
 
 export default function SettingsLayout({
   children

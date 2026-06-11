@@ -471,3 +471,13 @@
   --sidebar-border: hsl(215 15% 18%);
   --sidebar-ring: hsl(215 25% 45%);
 }
+
+@keyframes highlightFlash {
+  0% {
+    background-color: rgba(234, 179, 8, 0.45) !important;
+  }
+}
+
+.animate-highlight-flash {
+  animation: highlightFlash 3.5s ease-out;
+}

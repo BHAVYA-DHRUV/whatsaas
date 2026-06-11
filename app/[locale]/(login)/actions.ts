@@ -29,7 +29,6 @@ import {
 
 import { sendInvitationEmail } from '@/lib/email';
 import { getFreePlan } from '@/lib/db/queries';
-import { enforceLimit } from '@/lib/limits';
 import { rateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 async function logActivity(

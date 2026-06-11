@@ -4,9 +4,9 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { checkRoutePermission } from '@/lib/auth/permissions-guard';
 import { ActivityType, chats, contacts, contactTags } from '@/lib/db/schema';
-import { eq, and, or, like } from 'drizzle-orm';
+import { eq, and, or, like, isNull } from 'drizzle-orm';
 import { logActivity } from '@/lib/db/activity';
-import { enforceLimit } from '@/lib/limits';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest) {
     const chat = await db.query.chats.findFirst({
         where: and(
             eq(chats.teamId, team.id),
-            jidCondition
+            jidCondition,
+            isNull(chats.deletedAt)
         ),
         columns: { id: true }
     });
@@ -104,6 +105,8 @@ export async function POST(request: NextRequest) {
       tags: finalContact?.contactTags.map(ct => ct.tag) || []
     };
     delete (formattedContact as any).contactTags;
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(formattedContact, { status: 201 });
 

@@ -124,15 +124,11 @@ export class EvolutionProvider implements WhatsAppProvider {
     return { success: res.ok, raw: res.data };
   }
 
-  async sendInteractive(remoteJid: string, payload: SendInteractivePayload): Promise<SendResult> {
-    
-    
-    
+  async sendInteractive(_remoteJid: string, _payload: SendInteractivePayload): Promise<SendResult> {
     return { success: false, error: 'Interactive messages not supported via Evolution provider' };
   }
 
-  async sendTemplate(remoteJid: string, payload: SendTemplatePayload): Promise<SendResult> {
-    
+  async sendTemplate(_remoteJid: string, _payload: SendTemplatePayload): Promise<SendResult> {
     return { success: false, error: 'Template messages not supported via Evolution provider' };
   }
 

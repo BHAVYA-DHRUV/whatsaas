@@ -1,9 +1,25 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
-import { chats, messages, contacts, users, teams, evolutionInstances, teamMembers } from '@/lib/db/schema';
-import { eq, or, and, ilike, desc } from 'drizzle-orm';
+import { chats, messages, contacts, evolutionInstances, teamMembers } from '@/lib/db/schema';
+import { eq, or, and, ilike, desc, sql, isNull, gt } from 'drizzle-orm';
+import { normalizeQuery, normalizePhone, isDigitOnlyQuery, likePattern } from '@/lib/search/normalize';
 
+export const dynamic = 'force-dynamic';
+
+/**
+ * Enterprise-grade Global search — WhatsApp Web-like behavior.
+ *
+ * Features:
+ * - Case-insensitive search
+ * - Symbol-stripping normalization (john.doe matches "John Doe")
+ * - Phone digit-only matching (9016 matches "+91 90160 61520")
+ * - Partial matching on names, phones, message content
+ * - Filter by archived, pinned, unread, starred
+ * - Excludes archived chats by default in main search
+ * - No duplicate results
+ * - Optimized with GIN indexes
+ */
 export async function GET(request: NextRequest) {
   try {
     const team = await getTeamForUser();
@@ -13,12 +29,22 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('q');
-    const type = searchParams.get('type'); // chats, messages, contacts, users, instances, all
+    const rawQuery = searchParams.get('q') ?? '';
+    const type = searchParams.get('type'); // chats | messages | contacts | users | instances | all
+    const filter = searchParams.get('filter'); // archived | pinned | unread | starred | all (default)
+    const limit = parseInt(searchParams.get('limit') ?? '20', 10);
 
-    if (!query || query.length < 2) {
-      return NextResponse.json({ error: 'Query must be at least 2 characters' }, { status: 400 });
+    const trimmed = rawQuery.trim();
+    const isPhone = isDigitOnlyQuery(trimmed);
+
+    // Allow 1-char search only for digit-only (phone) queries
+    if (trimmed.length < 1 || (trimmed.length < 2 && !isPhone)) {
+      return NextResponse.json({ error: 'Query must be at least 2 characters (or 1 digit for phone search)' }, { status: 400 });
     }
+
+    const normQuery = normalizeQuery(trimmed);
+    const phoneDigits = normalizePhone(trimmed);
+    const textPattern = likePattern(normQuery);
 
     const results: any = {
       chats: [],
@@ -28,29 +54,67 @@ export async function GET(request: NextRequest) {
       instances: [],
     };
 
-    const searchPattern = `%${query}%`;
+    // Build base conditions for archived/pinned/unread filters
+    const chatFilterConditions: any[] = [];
+    
+    if (filter === 'archived') {
+      chatFilterConditions.push(eq(chats.isArchived, true));
+    } else if (filter === 'pinned') {
+      chatFilterConditions.push(and(eq(chats.isPinned, true), or(eq(chats.isArchived, false), isNull(chats.isArchived))));
+    } else if (filter === 'unread') {
+      chatFilterConditions.push(and(gt(chats.unreadCount, 0), or(eq(chats.isArchived, false), isNull(chats.isArchived))));
+    } else {
+      // Default: exclude archived chats
+      chatFilterConditions.push(or(eq(chats.isArchived, false), isNull(chats.isArchived)));
+    }
 
-    // Search chats
+    // ── Search chats ──────────────────────────────────────────────────────────
     if (!type || type === 'all' || type === 'chats') {
+      const chatConditions: any[] = [
+        ilike(chats.name, textPattern),
+        ilike(chats.pushName, textPattern),
+        ilike(chats.remoteJid, textPattern),
+        ilike(chats.lastMessageText, textPattern),
+      ];
+
+      if (phoneDigits.length > 0) {
+        // Optimized phone search using regex_replace for partial matching
+        chatConditions.push(
+          sql`regexp_replace(${chats.remoteJid}, '\\D', '', 'g') ILIKE ${likePattern(phoneDigits)}`
+        );
+      }
+
       results.chats = await db.query.chats.findMany({
         where: and(
           eq(chats.teamId, team.id),
-          or(
-            ilike(chats.name, searchPattern),
-            ilike(chats.remoteJid, searchPattern),
-            ilike(chats.lastMessageText, searchPattern)
-          )
+          isNull(chats.deletedAt),
+          ...chatFilterConditions,
+          or(...chatConditions)
         ),
-        orderBy: [desc(chats.lastMessageTimestamp)],
-        limit: 20,
+        orderBy: [
+          desc(chats.isPinned),
+          desc(chats.lastMessageTimestamp)
+        ],
+        limit,
       });
     }
 
-    // Search messages
-    if (!type || type === 'all' || type === 'messages') {
-      results.messages = await db.query.messages.findMany({
+    // ── Search messages ───────────────────────────────────────────────────────
+    if (!isPhone && (!type || type === 'all' || type === 'messages')) {
+      const messageConditions: any[] = [
+        ilike(messages.text, textPattern),
+        ilike(messages.mediaCaption, textPattern),
+      ];
+
+      // Filter starred messages if requested
+      if (filter === 'starred') {
+        messageConditions.push(eq(messages.isStarred, true));
+      }
+
+      const rawMessages = await db.query.messages.findMany({
         where: and(
-          ilike(messages.text, searchPattern)
+          ...messageConditions,
+          isNull(messages.deletedAt)
         ),
         with: {
           chat: {
@@ -59,29 +123,53 @@ export async function GET(request: NextRequest) {
               remoteJid: true,
               name: true,
               teamId: true,
+              isArchived: true,
             }
           }
         },
         orderBy: [desc(messages.timestamp)],
-        limit: 50,
+        limit: filter === 'starred' ? limit : 50,
       });
 
-      // Filter messages by teamId
-      results.messages = results.messages.filter((msg: any) => msg.chat?.teamId === team.id);
+      // Filter to current team only and exclude archived chats (unless filter is archived)
+      results.messages = rawMessages.filter((msg: any) => {
+        if (msg.chat?.teamId !== team.id) return false;
+        if (filter === 'archived') return msg.chat?.isArchived === true;
+        return msg.chat?.isArchived === false;
+      });
     }
 
-    // Search contacts
+    // ── Search contacts ───────────────────────────────────────────────────────
     if (!type || type === 'all' || type === 'contacts') {
+      const contactConditions: any[] = [
+        ilike(contacts.name, textPattern),
+        ilike(contacts.pushName, textPattern),
+        ilike(contacts.notes, textPattern),
+      ];
+
+      if (phoneDigits.length > 0) {
+        // Optimized phone search
+        contactConditions.push(
+          sql`regexp_replace(${contacts.phone}, '\\D', '', 'g') ILIKE ${likePattern(phoneDigits)}`
+        );
+      } else {
+        contactConditions.push(ilike(contacts.phone, textPattern));
+      }
+
       results.contacts = await db.query.contacts.findMany({
         where: and(
           eq(contacts.teamId, team.id),
-          or(
-            ilike(contacts.name, searchPattern),
-            ilike(contacts.notes, searchPattern)
-          )
+          isNull(contacts.deletedAt),
+          or(...contactConditions)
         ),
         with: {
-          chat: true,
+          chat: {
+            columns: {
+              id: true,
+              remoteJid: true,
+              isArchived: true,
+            }
+          },
           assignedUser: {
             columns: {
               id: true,
@@ -90,11 +178,19 @@ export async function GET(request: NextRequest) {
             }
           }
         },
-        limit: 20,
+        orderBy: [desc(contacts.updatedAt)],
+        limit,
       });
+
+      // Exclude archived chats from contact results (unless filter is archived)
+      if (filter !== 'archived') {
+        results.contacts = results.contacts.filter((c: any) => c.chat?.isArchived !== true);
+      }
+      // Exclude soft-deleted chats from contact results
+      results.contacts = results.contacts.filter((c: any) => !c.chat?.deletedAt);
     }
 
-    // Search users (team members only)
+    // ── Search users (team members) ───────────────────────────────────────────
     if (!type || type === 'all' || type === 'users') {
       const teamMembersData = await db.query.teamMembers.findMany({
         where: eq(teamMembers.teamId, team.id),
@@ -110,30 +206,32 @@ export async function GET(request: NextRequest) {
       });
 
       results.users = teamMembersData
-        .filter((tm: any) => 
-          tm.user.name?.toLowerCase().includes(query.toLowerCase()) ||
-          tm.user.email?.toLowerCase().includes(query.toLowerCase())
+        .filter((tm: any) =>
+          normalizeQuery(tm.user.name ?? '').includes(normQuery) ||
+          (tm.user.email ?? '').toLowerCase().includes(normQuery)
         )
         .map((tm: any) => tm.user);
     }
 
-    // Search instances
+    // ── Search instances ──────────────────────────────────────────────────────
     if (!type || type === 'all' || type === 'instances') {
       results.instances = await db.query.evolutionInstances.findMany({
         where: and(
           eq(evolutionInstances.teamId, team.id),
           or(
-            ilike(evolutionInstances.displayName, searchPattern),
-            ilike(evolutionInstances.instanceName, searchPattern)
+            ilike(evolutionInstances.displayName, textPattern),
+            ilike(evolutionInstances.instanceName, textPattern),
+            ilike(evolutionInstances.profileName, textPattern)
           )
         ),
-        limit: 20,
+        orderBy: [desc(evolutionInstances.connectedAt)],
+        limit,
       });
     }
 
     return NextResponse.json(results);
   } catch (error: any) {
-    console.error('Error in /api/search:', error.message);
+    console.error('[/api/search] Error:', error.message);
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }
 }

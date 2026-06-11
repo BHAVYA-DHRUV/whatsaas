@@ -1,22 +1,28 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useRouter } from '@/i18n/routing';
 import { MessageSquare, Loader2 } from 'lucide-react';
 
 export default function InboxPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const phone = searchParams.get('phone');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     // Target Chat Initiation: If user hits inbox with phone parameter, redirect to chat
-    if (phone) {
+    if (mounted && phone) {
       // Format the phone number for WhatsApp JID format
       const formattedPhone = phone.replace(/[^0-9]/g, '');
-      router.push(`/en/inbox/chat/${formattedPhone}`);
+      router.push(`/inbox/chat/${formattedPhone}`);
     }
-  }, [phone, router]);
+  }, [phone, router, mounted]);
 
   // Show loading state if redirecting, otherwise show placeholder
   if (phone) {

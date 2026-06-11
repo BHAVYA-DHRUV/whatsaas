@@ -22,7 +22,6 @@ import {
 import { MoreHorizontal, Mail, KeyRound, Trash2, Loader2 } from 'lucide-react';
 import { adminSendResetLink, adminSetPassword, deleteUser } from '../../admin-actions';
 import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 import { useSWRConfig } from 'swr';
 import { useTranslations } from 'next-intl';
 
@@ -37,7 +36,6 @@ export function UserActions({ userId, userName }: UserActionsProps) {
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const { mutate } = useSWRConfig();
-  const router = useRouter();
 
   const handleSendResetLink = () => {
     startTransition(async () => {

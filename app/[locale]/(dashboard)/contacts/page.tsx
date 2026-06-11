@@ -121,7 +121,7 @@ export default function ContactsPage() {
     const [newFieldType, setNewFieldType] = useState<'text' | 'boolean'>('text');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [importFile, setImportFile] = useState<File | null>(null);
-    const [importInstanceId, setImportInstanceId] = useState<string>('');
+    const [importInstanceId, setImportInstanceId] = useState<number | null>(null);
 
     const [columns, setColumns] = useState<ColumnDef[]>([
         { id: 'contact', label: 'Contact', visible: true, width: 300, type: 'system' },
@@ -181,7 +181,7 @@ export default function ContactsPage() {
             if (filterInstance === 'no_instance') {
                 result = result.filter(c => !c.instanceId);
             } else {
-                result = result.filter(c => c.instanceId?.toString() === filterInstance);
+                result = result.filter(c => c.instanceId === Number(filterInstance));
             }
         }
 
@@ -332,7 +332,7 @@ export default function ContactsPage() {
                     body: JSON.stringify({
                         teamId: teamData.id,
                         contacts: processedContacts,
-                        instanceId: importInstanceId ? parseInt(importInstanceId) : undefined
+                        instanceId: importInstanceId || undefined
                     })
                 });
 
@@ -348,7 +348,7 @@ export default function ContactsPage() {
                 mutate('/api/contacts/list');
                 setIsImportOpen(false);
                 setImportFile(null);
-                setImportInstanceId('');
+                setImportInstanceId(null);
             } catch (error) {
                 console.error(error);
                 toast.error(t('import_dialog.error'));
@@ -873,7 +873,7 @@ export default function ContactsPage() {
                         {instances.length > 0 && (
                             <div className="grid gap-2">
                                 <Label>{t('import_dialog.instance_label')}</Label>
-                                <Select value={importInstanceId} onValueChange={setImportInstanceId}>
+                                <Select value={importInstanceId?.toString()} onValueChange={(val) => setImportInstanceId(Number(val))}>
                                     <SelectTrigger>
                                         <SelectValue placeholder={t('import_dialog.instance_placeholder')} />
                                     </SelectTrigger>
@@ -922,7 +922,7 @@ export default function ContactsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => { setIsImportOpen(false); setImportFile(null); setImportInstanceId(''); }}>
+                        <Button variant="ghost" onClick={() => { setIsImportOpen(false); setImportFile(null); setImportInstanceId(null); }}>
                             {t('import_dialog.cancel_btn')}
                         </Button>
                         <Button onClick={handleImportSubmit} disabled={!importFile || isSaving}>

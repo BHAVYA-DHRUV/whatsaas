@@ -37,6 +37,13 @@ class SocketClient {
   private readonly socket: Socket;
   private readonly channels = new Map<string, SocketChannel>();
   private warnedConnectError = false;
+  private connectionMetrics = {
+    connectCount: 0,
+    disconnectCount: 0,
+    errorCount: 0,
+    lastConnectTime: 0,
+    lastDisconnectTime: 0,
+  };
 
   constructor() {
     const socketUrl =
@@ -45,27 +52,53 @@ class SocketClient {
 
     this.socket = io(socketUrl, {
       autoConnect: false,
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: 10,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 5_000,
-      forceNew: true,
+      reconnectionDelayMax: 10000,
+      timeout: 10_000,
+      forceNew: false,
       upgrade: true,
     });
 
     this.socket.on('connect', () => {
       this.warnedConnectError = false;
+      this.connectionMetrics.connectCount++;
+      this.connectionMetrics.lastConnectTime = Date.now();
+      console.log('[SocketClient] Connected', {
+        connectCount: this.connectionMetrics.connectCount,
+        socketId: this.socket.id,
+      });
+      
+      // Re-join all rooms after reconnection
       for (const roomName of this.channels.keys()) {
         this.socket.emit('join-room', roomName);
       }
     });
 
+    this.socket.on('disconnect', (reason) => {
+      this.connectionMetrics.disconnectCount++;
+      this.connectionMetrics.lastDisconnectTime = Date.now();
+      console.log('[SocketClient] Disconnected', {
+        reason,
+        disconnectCount: this.connectionMetrics.disconnectCount,
+      });
+    });
+
     this.socket.on('connect_error', (error) => {
+      this.connectionMetrics.errorCount++;
       if (this.warnedConnectError) return;
       this.warnedConnectError = true;
-      // Silently handle connection errors - socket will reconnect when available
+      console.warn('[SocketClient] Connection error:', error.message);
+    });
+
+    this.socket.io.on('reconnect_attempt', (attemptNumber) => {
+      console.log('[SocketClient] Reconnection attempt:', attemptNumber);
+    });
+
+    this.socket.io.on('reconnect_failed', () => {
+      console.error('[SocketClient] Reconnection failed after all attempts');
     });
   }
 
@@ -82,6 +115,31 @@ class SocketClient {
 
     this.socket.emit('join-room', channelName);
     return channel;
+  }
+
+  getConnectionHealth() {
+    return {
+      connected: this.socket.connected,
+      active: this.socket.active,
+      ...this.connectionMetrics,
+      uptime: this.connectionMetrics.lastConnectTime > 0 
+        ? Date.now() - this.connectionMetrics.lastConnectTime 
+        : 0,
+    };
+  }
+
+  async performHealthCheck(): Promise<boolean> {
+    if (!this.socket.connected) {
+      return false;
+    }
+    
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(false), 5000);
+      this.socket.emit('heartbeat', (response: { ok: boolean }) => {
+        clearTimeout(timeout);
+        resolve(response.ok);
+      });
+    });
   }
 }
 

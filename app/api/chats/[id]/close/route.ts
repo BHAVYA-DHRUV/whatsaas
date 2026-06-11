@@ -1,11 +1,11 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
-import { automationSessions, chats } from '@/lib/db/schema';
+import { automationSessions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createSystemMessage } from '@/lib/db/system-messages';
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const team = await getTeamForUser();
     const user = await getUser();

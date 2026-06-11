@@ -8,7 +8,7 @@ export class StripeAdapter implements PaymentGatewayAdapter {
   private webhookSecret?: string;
 
   constructor(secretKey: string, webhookSecret?: string) {
-    this.client = new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION });
+    this.client = new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION as any });
     this.webhookSecret = webhookSecret;
   }
 

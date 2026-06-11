@@ -1,0 +1,2 @@
+CREATE INDEX "chats_unread_count_idx" ON "chats" USING btree ("unread_count");--> statement-breakpoint
+CREATE INDEX "chats_last_message_timestamp_idx" ON "chats" USING btree ("last_message_timestamp");

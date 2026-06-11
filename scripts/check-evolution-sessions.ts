@@ -10,7 +10,7 @@ async function main() {
     `;
     console.log('Sessions in DB:', sessions);
   } catch (err) {
-    console.error('Failed to get sessions:', err.message);
+    console.error('Failed to get sessions:', err instanceof Error ? err.message : String(err));
   } finally {
     await sql.end();
   }

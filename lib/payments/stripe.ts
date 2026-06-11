@@ -11,7 +11,7 @@ import {
 } from '@/lib/db/queries';
 
 export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: STRIPE_API_VERSION,
+  apiVersion: STRIPE_API_VERSION as any,
 });
 
 export async function createCheckoutSession({

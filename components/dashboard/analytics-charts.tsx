@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Suspense, useMemo } from 'react';
+import { Suspense, useMemo, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LineChart,
@@ -27,7 +27,7 @@ function ChartSkeleton({ height = 280 }: { height?: number }) {
   return <div className="w-full animate-pulse rounded-lg bg-muted" style={{ height }} />;
 }
 
-export function FunnelLineChart({ data }: { data: FunnelMetric[] }) {
+export const FunnelLineChart = memo(function FunnelLineChart({ data }: { data: FunnelMetric[] }) {
   const chartData = useMemo(
     () => (data?.length ? data : [{ name: 'No stages', value: 0 }]),
     [data]
@@ -65,9 +65,9 @@ export function FunnelLineChart({ data }: { data: FunnelMetric[] }) {
       </CardContent>
     </Card>
   );
-}
+});
 
-export function FunnelRadarChart({ data }: { data: FunnelMetric[] }) {
+export const FunnelRadarChart = memo(function FunnelRadarChart({ data }: { data: FunnelMetric[] }) {
   const chartData = useMemo(
     () => (data?.length ? data : [{ name: 'Empty', value: 0 }]),
     [data]
@@ -99,9 +99,9 @@ export function FunnelRadarChart({ data }: { data: FunnelMetric[] }) {
       </CardContent>
     </Card>
   );
-}
+});
 
-export function AgentList({ data }: { data: AgentMetric[] }) {
+export const AgentList = memo(function AgentList({ data }: { data: AgentMetric[] }) {
   const agents = data?.length ? data : [];
 
   return (
@@ -139,11 +139,11 @@ export function AgentList({ data }: { data: AgentMetric[] }) {
       </CardContent>
     </Card>
   );
-}
+});
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function TrafficHeatmap({ data }: { data: TrafficMetric[] }) {
+export const TrafficHeatmap = memo(function TrafficHeatmap({ data }: { data: TrafficMetric[] }) {
   const { weeks, max } = useMemo(() => {
     if (!data?.length) return { weeks: [] as TrafficMetric[][], max: 1 };
     const byWeek: TrafficMetric[][] = [];
@@ -201,7 +201,7 @@ export function TrafficHeatmap({ data }: { data: TrafficMetric[] }) {
       </CardContent>
     </Card>
   );
-}
+});
 
 /** Lazy-loaded analytics bundle for pages that want smaller initial JS */
 export const AnalyticsChartsLazy = dynamic(

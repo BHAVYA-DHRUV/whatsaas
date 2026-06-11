@@ -3,6 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { contacts, chats, tags, contactTags, customFields, funnelStages, teamMembers, departments } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getSession } from '@/lib/auth/session';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function POST(req: NextRequest) {
   try {
@@ -181,6 +182,8 @@ export async function POST(req: NextRequest) {
         errorCount++;
       }
     }
+
+    await cacheInvalidateTeam(currentTeamId);
 
     return NextResponse.json({ success: true, imported: successCount, failed: errorCount });
   } catch (error) {

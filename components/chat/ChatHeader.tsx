@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo, useMemo, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { PanelRight, Search, X, Phone, MoreVertical, Pin, Archive, Trash2 } from
 import type { ChatDetails } from './types';
 import { getChatInitials, isContactOnline } from '@/lib/inbox/utils';
 import { cn } from '@/lib/utils';
+import { LiveTimestamp } from '@/components/inbox/LiveTimestamp';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +47,29 @@ type Props = {
   customerPresence?: 'composing' | 'recording' | 'available' | 'unavailable' | null;
 };
 
-export function ChatHeader({
+function formatLastSeen(dateStr: string | Date | number | null | undefined): string {
+  if (!dateStr) return 'Offline';
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return 'Offline';
+  
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  
+  if (diffMins < 1) return 'Online';
+  if (diffMins < 60) return `Last seen ${diffMins}m ago`;
+  
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `Last seen ${diffHours}h ago`;
+  
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return 'Last seen yesterday';
+  if (diffDays < 7) return `Last seen ${diffDays}d ago`;
+  
+  return `Last seen on ${date.toLocaleDateString()}`;
+}
+
+export const ChatHeader = memo(function ChatHeader({
   chatId,
   isPinned,
   isArchived,
@@ -60,12 +83,12 @@ export function ChatHeader({
   phone,
   customerPresence,
 }: Props) {
-  const online = isContactOnline(chatDetails.lastCustomerInteraction);
-  const initials = getChatInitials(chatDetails.name);
+  const online = useMemo(() => isContactOnline(chatDetails.lastCustomerInteraction), [chatDetails.lastCustomerInteraction]);
+  const initials = useMemo(() => getChatInitials(chatDetails.name), [chatDetails.name]);
   const router = useRouter();
   const { mutate } = useSWRConfig();
 
-  const handleTogglePin = async () => {
+  const handleTogglePin = useCallback(async () => {
     if (!chatId) return;
     try {
       const response = await fetch(`/api/chats/${chatId}`, {
@@ -79,7 +102,7 @@ export function ChatHeader({
     } catch (err: any) {
       toast.error(err.message);
     }
-  };
+  }, [chatId, isPinned, mutate]);
 
   const handleToggleArchive = async () => {
     if (!chatId) return;
@@ -91,7 +114,9 @@ export function ChatHeader({
       });
       if (!response.ok) throw new Error('Failed to update archive status');
       toast.success(isArchived ? 'Conversation unarchived' : 'Conversation archived');
+      // Invalidate BOTH caches so the sidebar updates correctly in all filter views
       mutate('/api/chats');
+      mutate('/api/chats/archive');
       if (!isArchived) {
         router.push('/inbox');
       }
@@ -109,7 +134,26 @@ export function ChatHeader({
   const handleDeleteConfirm = async () => {
     setShowDeleteDialog(false);
     if (!chatId) return;
+
+    // 1. Optimistic update: instantly remove from SWR lists
+    console.log("[CHAT DELETE CACHE UPDATE]", { chatId });
+    const mutateKeysFilter = (key: any) => typeof key === 'string' && key.startsWith('/api/chats');
+
+    await mutate(
+      mutateKeysFilter,
+      (currentData: any) => {
+        if (!Array.isArray(currentData)) return currentData;
+        return currentData.filter((c: any) => {
+          if (c.id === chatId) return false;
+          if (c.chat && c.chat.id === chatId) return false;
+          return true;
+        });
+      },
+      { revalidate: false }
+    );
+
     try {
+      console.log("[CHAT DELETE REQUEST]", { chatIds: [chatId] });
       const response = await fetch('/api/chats/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -119,18 +163,19 @@ export function ChatHeader({
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || 'Failed to delete conversation');
       }
+
+      const result = await response.json();
+      console.log("[CHAT DELETE SUCCESS]", result);
       toast.success('Conversation deleted successfully');
       
-      // Mutate all SWR keys starting with /api/chats to update the UI immediately
-      mutate(
-        (key) => typeof key === 'string' && key.startsWith('/api/chats'),
-        undefined,
-        { revalidate: true }
-      );
+      // 2. Final revalidation to sync with the server
+      await mutate(mutateKeysFilter, undefined, { revalidate: true });
 
       router.push('/inbox');
     } catch (err: any) {
       toast.error(err.message);
+      // Restore on failure by triggering a revalidation
+      await mutate(mutateKeysFilter, undefined, { revalidate: true });
     }
   };
 
@@ -159,7 +204,11 @@ export function ChatHeader({
             </>
           ) : (
             <span className="truncate text-xs text-muted-foreground">
-              {phone || chatDetails.integration}
+              {chatDetails.lastCustomerInteraction ? (
+                <LiveTimestamp timestamp={chatDetails.lastCustomerInteraction} formatFn={formatLastSeen} />
+              ) : (
+                phone || chatDetails.integration
+              )}
             </span>
           )}
         </div>
@@ -252,4 +301,4 @@ export function ChatHeader({
       </AlertDialog>
     </header>
   );
-}
+});

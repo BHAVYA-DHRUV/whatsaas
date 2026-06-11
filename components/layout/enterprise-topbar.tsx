@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import { Bell, Search, Command } from 'lucide-react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 import {
@@ -17,14 +15,20 @@ import useSWR from 'swr';
 import { signOut } from '@/app/[locale]/(login)/actions';
 import { useRouter } from 'next/navigation';
 import { mutate } from 'swr';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { apiFetcher } from '@/lib/fetcher';
 
 export function EnterpriseTopbar({ title }: { title?: string }) {
   const router = useRouter();
-  const { data: user } = useSWR<{ name?: string; email: string }>('/api/user', fetcher);
-  const { data: team } = useSWR<{ name?: string; planName?: string }>('/api/team', fetcher);
-  const [search, setSearch] = useState('');
+  const { data: user } = useSWR<{ name?: string; email: string }>('/api/user', apiFetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    dedupingInterval: 60_000,
+  });
+  const { data: team } = useSWR<{ name?: string; planName?: string }>('/api/team', apiFetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    dedupingInterval: 60_000,
+  });
 
   async function handleSignOut() {
     await signOut();
@@ -45,18 +49,16 @@ export function EnterpriseTopbar({ title }: { title?: string }) {
       </div>
 
       <div className="hidden max-w-sm flex-1 md:flex">
-        <div className="relative w-full">
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent('open-global-search'))}
+          className="relative flex h-9 w-full items-center justify-between rounded-full border border-border/60 bg-muted/50 pl-9 pr-3 text-sm text-muted-foreground transition-all hover:bg-muted/80 focus:outline-none focus:ring-1 focus:ring-ring cursor-text"
+        >
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search chats, contacts…"
-            className="h-9 rounded-full border-border/60 bg-muted/50 pl-9"
-          />
-          <kbd className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] text-muted-foreground sm:flex">
+          <span className="text-muted-foreground/80">Search chats, contacts, settings...</span>
+          <kbd className="pointer-events-none flex items-center gap-1 rounded border bg-background px-1.5 font-mono text-[10px] text-muted-foreground">
             <Command className="h-3 w-3" />K
           </kbd>
-        </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-1">

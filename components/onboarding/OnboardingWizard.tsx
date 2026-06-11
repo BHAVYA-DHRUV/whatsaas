@@ -84,7 +84,6 @@ export function OnboardingWizard() {
   const [creatingInstance, setCreatingInstance] = useState(false);
   const [qrBase64, setQrBase64] = useState<string | null>(null);
   const [connectedInstance, setConnectedInstance] = useState<string | null>(null);
-  const [connectionState, setConnectionState] = useState<'idle' | 'creating' | 'waiting_qr' | 'connecting' | 'open' | 'disconnected'>('idle');
   const [refreshingQr, setRefreshingQr] = useState(false);
   const [pollingConnected, setPollingConnected] = useState(false);
 

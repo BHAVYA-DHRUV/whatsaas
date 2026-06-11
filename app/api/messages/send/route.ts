@@ -5,6 +5,7 @@ import { chats, messages, evolutionInstances } from '@/lib/db/schema';
 import { eq, and, or, like } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
 import { sendTextViaProvider } from '@/lib/whatsapp/send-helpers';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://localhost:8080";
 
@@ -188,27 +189,54 @@ export async function POST(request: NextRequest) {
       };
     }
 
-    const evolutionResponse = await fetch(
-      `${EVOLUTION_API_URL}/message/sendText/${instanceName}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': accessToken,
-        },
-        body: JSON.stringify(evolutionPayload),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    const evolutionData = await evolutionResponse.json() as any;
-
-    const sendFailed = !evolutionResponse.ok;
+    let evolutionResponse: Response | null = null;
+    let evolutionData: any = null;
+    let sendFailed = true;
     let errorMsg: string | null = null;
+
+    // Retry sending to Evolution API up to 3 times
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        evolutionResponse = await fetch(
+          `${EVOLUTION_API_URL}/message/sendText/${instanceName}`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': accessToken,
+            },
+            body: JSON.stringify(evolutionPayload),
+            signal: AbortSignal.timeout(10000),
+          }
+        );
+
+        const responseText = await evolutionResponse.text();
+        try {
+          evolutionData = JSON.parse(responseText);
+        } catch {
+          evolutionData = { error: responseText || 'Unknown response format' };
+        }
+
+        if (evolutionResponse.ok && evolutionData && !evolutionData.error && evolutionData.status !== 'ERROR' && evolutionData.key?.id) {
+          sendFailed = false;
+          break;
+        }
+
+        errorMsg = evolutionData?.message || evolutionData?.error || 'Failed to send message via Evolution API.';
+        console.warn(`[Message Send] Attempt ${attempt} failed for ${instanceName}: ${errorMsg}`);
+      } catch (err: any) {
+        errorMsg = err.message || 'Network timeout or connection error';
+        console.warn(`[Message Send] Attempt ${attempt} error for ${instanceName}: ${errorMsg}`);
+      }
+
+      if (attempt < 3) {
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
 
     if (sendFailed) {
       console.error(`Evolution API Error for ${instanceName}:`, evolutionData);
-      errorMsg = evolutionData?.message || evolutionData?.error || 'Failed to send message via Evolution API.';
     }
 
     const isGroupChat = recipientJid.endsWith('@g.us');
@@ -245,9 +273,9 @@ export async function POST(request: NextRequest) {
             .where(eq(chats.id, finalChatId));
       }
 
-      const messageId = sendFailed ? `error_${Date.now()}` : evolutionData.key.id;
-      const messageContent = sendFailed ? null : (evolutionData.message?.extendedTextMessage || evolutionData.message);
-      const messageText = sendFailed ? text : (messageContent?.text || evolutionData.message?.conversation || text);
+      const messageId = (sendFailed || !evolutionData?.key?.id) ? `error_${Date.now()}` : evolutionData.key.id;
+      const messageContent = (sendFailed || !evolutionData?.message) ? null : (evolutionData.message?.extendedTextMessage || evolutionData.message);
+      const messageText = (sendFailed || !evolutionData?.message) ? text : (messageContent?.text || evolutionData.message?.conversation || text);
 
       const dbQuotedMessageId = quotedMessageData?.id || null;
       const dbQuotedMessageText = quotedMessageData ? JSON.stringify(quotedMessageData) : null;
@@ -256,7 +284,7 @@ export async function POST(request: NextRequest) {
         id: messageId,
         chatId: finalChatId,
         fromMe: true,
-        messageType: sendFailed ? 'conversation' : (evolutionData.messageType || (messageContent?.text ? 'extendedTextMessage' : 'conversation')),
+        messageType: (sendFailed || !evolutionData) ? 'conversation' : (evolutionData.messageType || (messageContent?.text ? 'extendedTextMessage' : 'conversation')),
         text: messageText,
         timestamp: new Date(),
         status: messageStatus,
@@ -283,6 +311,8 @@ export async function POST(request: NextRequest) {
       const [insertedMessage] = await tx.insert(messages).values(newMessageData).onConflictDoNothing().returning();
       savedMessage = insertedMessage || newMessageData;
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(formatMessageForFrontend(savedMessage || {}));
 

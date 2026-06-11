@@ -18,7 +18,7 @@ async function main() {
         break;
       }
     } catch (err) {
-      console.error('Error fetching QR:', err.message);
+      console.error('Error fetching QR:', err instanceof Error ? err.message : String(err));
     }
     console.log('Waiting 3 seconds before next attempt...');
     await new Promise((resolve) => setTimeout(resolve, 3000));

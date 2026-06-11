@@ -21,7 +21,7 @@ async function main() {
       console.log('Instances inside Docker Postgres:', JSON.stringify(rows, null, 2));
     }
   } catch (err) {
-    console.error('Connection failed:', err.message);
+    console.error('Connection failed:', err instanceof Error ? err.message : String(err));
   } finally {
     await sql.end();
   }

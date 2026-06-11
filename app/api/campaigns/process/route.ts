@@ -3,15 +3,44 @@ import { db } from '@/lib/db/drizzle';
 import { campaigns, campaignLeads, chats, contacts, messages } from '@/lib/db/schema';
 import { eq, and, sql, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { getRedis } from '@/lib/redis';
 
 const BATCH_SIZE = 50;
 const DELAY_BETWEEN_SENDS_MS = 200;
 const CRON_SECRET = process.env.CRON_SECRET;
 
+declare global {
+    var isCampaignProcessing: boolean | undefined;
+}
+
 export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     if (CRON_SECRET && authHeader !== `Bearer ${CRON_SECRET}`) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const redis = getRedis();
+    const lockKey = 'lock:campaign-processor';
+    const lockTTL = 120; // 2 minutes
+    let hasLock = false;
+
+    if (redis) {
+        try {
+            const result = await (redis as any).set(lockKey, '1', 'EX', lockTTL, 'NX');
+            hasLock = result === 'OK';
+        } catch (err) {
+            console.error('[Campaign Process] Redis lock check failed, falling back to memory lock:', err);
+        }
+    }
+
+    if (!redis) {
+        if (global.isCampaignProcessing) {
+            return NextResponse.json({ message: 'Campaign processor already running (memory lock)' });
+        }
+        global.isCampaignProcessing = true;
+        hasLock = true;
+    } else if (!hasLock) {
+        return NextResponse.json({ message: 'Campaign processor already running (Redis lock)' });
     }
 
     try {
@@ -76,164 +105,175 @@ export async function GET(request: Request) {
                 continue;
             }
 
-            let sentCount = 0;
-            let failedCount = 0;
+            // Process leads in concurrent chunks of 10 to speed up execution
+            const chunks = [];
+            for (let i = 0; i < leads.length; i += 10) {
+                chunks.push(leads.slice(i, i + 10));
+            }
 
-            for (const lead of leads) {
-                try {
-                    const dbComponents = campaign.template.components as any[];
-                    const payloadComponents = [];
-
-                    for (const comp of dbComponents) {
-                        if (comp.type === 'BODY') {
-                            const params = [];
-
-                            if (lead.variables) {
-                                const vars = lead.variables as Record<string, string>;
-                                const textMatch = comp.text.match(/\{\{(\d+)\}\}/g);
-                                if (textMatch) {
-                                    const expectedCount = textMatch.length;
-                                    for (let i = 1; i <= expectedCount; i++) {
-                                        const val = vars[i.toString()] || vars[Object.keys(vars)[i - 1]] || "";
-                                        params.push({ type: 'text', text: val });
-                                    }
-                                }
-                            }
-
-                            if (params.length > 0) {
-                                payloadComponents.push({ type: 'body', parameters: params });
-                            }
+            const resultsForLeads = [];
+            for (const chunk of chunks) {
+                const chunkResults = await Promise.all(chunk.map(async (lead) => {
+                    try {
+                        if (!campaign.template) {
+                            return { success: false, error: 'Template not found' };
                         }
-                    }
+                        const dbComponents = campaign.template.components as Array<{ type: string; text?: string; [key: string]: unknown }>;
+                        const payloadComponents = [];
 
-                    const metaPayload = {
-                        messaging_product: "whatsapp",
-                        to: lead.phone,
-                        type: "template",
-                        template: {
-                            name: campaign.template.name,
-                            language: { code: campaign.template.language },
-                            components: payloadComponents.length > 0 ? payloadComponents : undefined
-                        }
-                    };
+                        for (const comp of dbComponents) {
+                            if (comp.type === 'BODY') {
+                                const params = [];
 
-                    const response = await fetch(
-                        `https://graph.facebook.com/v21.0/${campaign.instance.metaPhoneNumberId}/messages`,
-                        {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${campaign.instance.metaToken}`,
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(metaPayload),
-                            signal: AbortSignal.timeout(10000),
-                        }
-                    );
-
-                    if (response.ok) {
-                        const metaResult = await response.json();
-                        await db.update(campaignLeads)
-                            .set({ status: 'SENT' })
-                            .where(eq(campaignLeads.id, lead.id));
-                        sentCount++;
-
-                        if (campaign.createContacts) {
-                            try {
-                                const cleanPhone = lead.phone.replace(/[^\d]/g, '');
-                                const remoteJid = `${cleanPhone}@s.whatsapp.net`;
-                                const contactName = (lead.variables as Record<string, string>)?.['1'] || lead.phone;
-
-                                let chat = await db.query.chats.findFirst({
-                                    where: and(
-                                        eq(chats.teamId, campaign.teamId),
-                                        eq(chats.remoteJid, remoteJid),
-                                        eq(chats.instanceId, campaign.instanceId)
-                                    )
-                                });
-
-                                let templateText = '';
-                                for (const comp of dbComponents) {
-                                    if (comp.type === 'BODY' && comp.text) {
-                                        templateText = comp.text;
-                                        if (lead.variables) {
-                                            const vars = lead.variables as Record<string, string>;
-                                            templateText = templateText.replace(/\{\{(\d+)\}\}/g, (_: string, num: string) => {
-                                                return vars[num] || vars[Object.keys(vars)[parseInt(num) - 1]] || `{{${num}}}`;
-                                            });
+                                if (lead.variables) {
+                                    const vars = lead.variables as Record<string, string>;
+                                    const textMatch = comp.text?.match(/\{\{(\d+)\}\}/g);
+                                    if (textMatch) {
+                                        const expectedCount = textMatch.length;
+                                        for (let i = 1; i <= expectedCount; i++) {
+                                            const val = vars[i.toString()] || vars[Object.keys(vars)[i - 1]] || "";
+                                            params.push({ type: 'text', text: val });
                                         }
                                     }
                                 }
 
-                                const now = new Date();
-                                const messageId = metaResult?.messages?.[0]?.id || `campaign_${campaign.id}_${randomUUID()}`;
-
-                                if (!chat) {
-                                    const [newChat] = await db.insert(chats).values({
-                                        teamId: campaign.teamId,
-                                        instanceId: campaign.instanceId,
-                                        remoteJid,
-                                        name: contactName,
-                                        lastMessageText: templateText || `[Template: ${campaign.template.name}]`,
-                                        lastMessageTimestamp: now,
-                                        lastMessageFromMe: true,
-                                        lastMessageStatus: 'sent',
-                                        unreadCount: 0
-                                    }).returning();
-                                    chat = newChat;
-                                } else {
-                                    await db.update(chats).set({
-                                        lastMessageText: templateText || `[Template: ${campaign.template.name}]`,
-                                        lastMessageTimestamp: now,
-                                        lastMessageFromMe: true,
-                                        lastMessageStatus: 'sent'
-                                    }).where(eq(chats.id, chat.id));
+                                if (params.length > 0) {
+                                    payloadComponents.push({ type: 'body', parameters: params });
                                 }
-
-                                const existingContact = await db.query.contacts.findFirst({
-                                    where: and(
-                                        eq(contacts.teamId, campaign.teamId),
-                                        eq(contacts.chatId, chat.id)
-                                    )
-                                });
-
-                                if (!existingContact) {
-                                    await db.insert(contacts).values({
-                                        teamId: campaign.teamId,
-                                        chatId: chat.id,
-                                        name: contactName
-                                    });
-                                }
-
-                                await db.insert(messages).values({
-                                    id: messageId,
-                                    chatId: chat.id,
-                                    fromMe: true,
-                                    messageType: 'campaign',
-                                    text: templateText || `[Template: ${campaign.template.name}]`,
-                                    timestamp: now,
-                                    status: 'sent'
-                                }).onConflictDoNothing();
-                            } catch (contactErr: any) {
-                                console.error('[Campaign Contact Create]', contactErr.message);
                             }
                         }
-                    } else {
-                        const err = await response.json();
+
+                        const metaPayload = {
+                            messaging_product: "whatsapp",
+                            to: lead.phone,
+                            type: "template",
+                            template: {
+                                name: campaign.template!.name,
+                                language: { code: campaign.template!.language },
+                                components: payloadComponents.length > 0 ? payloadComponents : undefined
+                            }
+                        };
+
+                        const response = await fetch(
+                            `https://graph.facebook.com/v21.0/${campaign.instance.metaPhoneNumberId}/messages`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Bearer ${campaign.instance.metaToken}`,
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify(metaPayload),
+                                signal: AbortSignal.timeout(10000),
+                            }
+                        );
+
+                        if (response.ok) {
+                            const metaResult = await response.json();
+                            await db.update(campaignLeads)
+                                .set({ status: 'SENT' })
+                                .where(eq(campaignLeads.id, lead.id));
+
+                            if (campaign.createContacts) {
+                                try {
+                                    const cleanPhone = lead.phone.replace(/[^\d]/g, '');
+                                    const remoteJid = `${cleanPhone}@s.whatsapp.net`;
+                                    const contactName = (lead.variables as Record<string, string>)?.['1'] || lead.phone;
+
+                                    let chat = await db.query.chats.findFirst({
+                                        where: and(
+                                            eq(chats.teamId, campaign.teamId),
+                                            eq(chats.remoteJid, remoteJid),
+                                            eq(chats.instanceId, campaign.instanceId)
+                                        )
+                                    });
+
+                                    let templateText = '';
+                                    for (const comp of dbComponents) {
+                                        if (comp.type === 'BODY' && comp.text) {
+                                            templateText = comp.text;
+                                            if (lead.variables) {
+                                                const vars = lead.variables as Record<string, string>;
+                                                templateText = templateText.replace(/\{\{(\d+)\}\}/g, (_: string, num: string) => {
+                                                    return vars[num] || vars[Object.keys(vars)[parseInt(num) - 1]] || `{{${num}}}`;
+                                                });
+                                            }
+                                        }
+                                    }
+
+                                    const now = new Date();
+                                    const messageId = metaResult?.messages?.[0]?.id || `campaign_${campaign.id}_${randomUUID()}`;
+
+                                    if (!chat) {
+                                        const [newChat] = await db.insert(chats).values({
+                                            teamId: campaign.teamId,
+                                            instanceId: campaign.instanceId,
+                                            remoteJid,
+                                            name: contactName,
+                                            lastMessageText: templateText || `[Template: ${campaign.template!.name}]`,
+                                            lastMessageTimestamp: now,
+                                            lastMessageFromMe: true,
+                                            lastMessageStatus: 'sent',
+                                            unreadCount: 0
+                                        }).returning();
+                                        chat = newChat;
+                                    } else {
+                                        await db.update(chats).set({
+                                            lastMessageText: templateText || `[Template: ${campaign.template!.name}]`,
+                                            lastMessageTimestamp: now,
+                                            lastMessageFromMe: true,
+                                            lastMessageStatus: 'sent'
+                                        }).where(eq(chats.id, chat.id));
+                                    }
+
+                                    const existingContact = await db.query.contacts.findFirst({
+                                        where: and(
+                                            eq(contacts.teamId, campaign.teamId),
+                                            eq(contacts.chatId, chat.id)
+                                        )
+                                    });
+
+                                    if (!existingContact) {
+                                        await db.insert(contacts).values({
+                                            teamId: campaign.teamId,
+                                            chatId: chat.id,
+                                            name: contactName
+                                        });
+                                    }
+
+                                    await db.insert(messages).values({
+                                        id: messageId,
+                                        chatId: chat.id,
+                                        fromMe: true,
+                                        messageType: 'campaign',
+                                        text: templateText || `[Template: ${campaign.template!.name}]`,
+                                        timestamp: now,
+                                        status: 'sent'
+                                    }).onConflictDoNothing();
+                                } catch (contactErr: any) {
+                                    console.error('[Campaign Contact Create]', contactErr.message);
+                                }
+                            }
+                            return { success: true };
+                        } else {
+                            const err = await response.json();
+                            await db.update(campaignLeads)
+                                .set({ status: 'FAILED', error: JSON.stringify(err) })
+                                .where(eq(campaignLeads.id, lead.id));
+                            return { success: false };
+                        }
+                    } catch (e: any) {
                         await db.update(campaignLeads)
-                            .set({ status: 'FAILED', error: JSON.stringify(err) })
+                            .set({ status: 'FAILED', error: e.message })
                             .where(eq(campaignLeads.id, lead.id));
-                        failedCount++;
+                        return { success: false };
                     }
-
-                    await new Promise(r => setTimeout(r, DELAY_BETWEEN_SENDS_MS));
-
-                } catch (e: any) {
-                    await db.update(campaignLeads)
-                        .set({ status: 'FAILED', error: e.message })
-                        .where(eq(campaignLeads.id, lead.id));
-                    failedCount++;
-                }
+                }));
+                resultsForLeads.push(...chunkResults);
+                await new Promise(r => setTimeout(r, DELAY_BETWEEN_SENDS_MS));
             }
+
+            const sentCount = resultsForLeads.filter(r => r.success).length;
+            const failedCount = resultsForLeads.filter(r => !r.success).length;
 
             await db.update(campaigns).set({
                 sentCount: sql`${campaigns.sentCount} + ${sentCount}`,
@@ -267,5 +307,11 @@ export async function GET(request: Request) {
     } catch (error: any) {
         console.error('[Campaign Process]', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    } finally {
+        if (redis) {
+            await redis.del(lockKey).catch(() => {});
+        } else {
+            global.isCampaignProcessing = false;
+        }
     }
 }

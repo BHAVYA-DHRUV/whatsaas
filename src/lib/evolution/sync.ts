@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/drizzle';
-import { chats, contacts, messages, evolutionInstances } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { chats, contacts, messages } from '@/lib/db/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
 import { pusherServer } from '@/lib/pusher-server';
 import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
@@ -86,7 +86,7 @@ function getStatusFromUpdate(updates: any[]): string {
  * STEP 1 - AUDIT EVOLUTION CONNECTION
  * Audits connection state, triggers reconnect / restart if not open, and polls until open.
  */
-export async function syncInstance(instanceName: string, token: string): Promise<boolean> {
+export async function syncInstance(instanceName: string): Promise<boolean> {
   const config = await getEvolutionConfig();
   console.log(`[SYNC SERVICE] Auditing connection for ${instanceName}...`);
 
@@ -212,6 +212,20 @@ export async function syncChats(
           },
         })
         .returning();
+
+      if (dbChat.deletedAt) {
+        console.log("[CHAT DELETE SYNC SKIPPED]", {
+          chatId: dbChat.id,
+          remoteJid: chat.remoteJid,
+          instanceId
+        });
+        console.log("[CHAT DELETE SOCKET EVENT BLOCKED]", {
+          event: "sync-chat-update",
+          chatId: dbChat.id,
+          remoteJid: chat.remoteJid
+        });
+        continue;
+      }
 
       processedChats.push(dbChat);
 
@@ -514,7 +528,11 @@ export async function triggerSync(
   // If processedChats is empty (due to empty Message table in Evolution), load the chats we just synced from contacts
   if (processedChats.length === 0) {
     processedChats = await db.query.chats.findMany({
-      where: and(eq(chats.teamId, teamId), eq(chats.instanceId, instanceId)),
+      where: and(
+        eq(chats.teamId, teamId),
+        eq(chats.instanceId, instanceId),
+        isNull(chats.deletedAt)
+      ),
       orderBy: (c, { desc }) => [desc(c.lastMessageTimestamp)],
     });
   }

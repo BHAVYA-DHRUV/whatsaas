@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { aiSessions, chats, contacts } from '@/lib/db/schema';
+import { aiSessions, contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { getTeamForUser } from '@/lib/db/queries';
 

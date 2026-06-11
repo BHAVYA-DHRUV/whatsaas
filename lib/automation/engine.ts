@@ -121,7 +121,7 @@ export async function processAutomation(
   chatId: number,
   remoteJid: string,
   incomingText: string,
-  instanceData: { instanceName: string; accessToken: string }, 
+  _instanceData: { instanceName: string; accessToken: string }, 
   instanceId: number
 ): Promise<boolean> {
   const text = incomingText.trim();

@@ -1,6 +1,6 @@
 import { db } from '../lib/db/drizzle';
 import { chats, messages } from '../lib/db/schema';
-import { desc, eq, like } from 'drizzle-orm';
+import { desc, like } from 'drizzle-orm';
 
 async function main() {
   try {

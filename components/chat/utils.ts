@@ -18,9 +18,8 @@ export async function fileToBase64(file: Blob): Promise<string> {
 
 export function isSameDay(a: Date, b: Date): boolean {
   return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
+    a.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric' }) ===
+    b.toLocaleDateString('en-US', { timeZone: 'Asia/Kolkata', year: 'numeric', month: 'numeric', day: 'numeric' })
   );
 }
 
@@ -30,5 +29,5 @@ export function formatDateSeparator(date: Date): string {
   yesterday.setDate(today.getDate() - 1);
   if (isSameDay(date, today)) return 'Today';
   if (isSameDay(date, yesterday)) return 'Yesterday';
-  return date.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
 }

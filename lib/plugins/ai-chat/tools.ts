@@ -1,6 +1,6 @@
 import { ToolDefinition } from './types';
 import { db } from '@/lib/db/drizzle';
-import { chats, aiTools, messages, contacts, funnelStages, teamMembers, users, customFields, tags, contactTags } from '@/lib/db/schema';
+import { chats, aiTools, messages, contacts, funnelStages, teamMembers, customFields, tags, contactTags } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
 import { createSystemMessage } from '@/lib/db/system-messages';

@@ -12,7 +12,7 @@ async function main() {
     const qrResult = await EvolutionSDK.fetchQR(instanceName);
     console.log('QR Code response:', JSON.stringify(qrResult, null, 2));
   } catch (err) {
-    console.error('Error fetching QR:', err.message);
+    console.error('Error fetching QR:', err instanceof Error ? err.message : String(err));
   }
 }
 

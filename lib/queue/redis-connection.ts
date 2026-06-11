@@ -1,21 +1,13 @@
-import IORedis from 'ioredis';
 import type { ConnectionOptions } from 'bullmq';
-
-let sharedConnection: IORedis | null = null;
+import { getWorkerConnection } from '@/lib/redis/connection-manager';
 
 /** BullMQ requires maxRetriesPerRequest: null on dedicated connections. */
-export function getQueueConnection(): IORedis {
-  const url = process.env.REDIS_URL;
-  if (!url) {
+export function getQueueConnection() {
+  const connection = getWorkerConnection();
+  if (!connection) {
     throw new Error('REDIS_URL is required for queue workers');
   }
-  if (!sharedConnection) {
-    sharedConnection = new IORedis(url, {
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
-    });
-  }
-  return sharedConnection;
+  return connection;
 }
 
 /**

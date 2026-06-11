@@ -23,7 +23,7 @@ async function main() {
       console.log(`Deleted ${deleted} keys.`);
     }
   } catch (error) {
-    console.error('Error querying Redis:', error.message);
+    console.error('Error querying Redis:', error instanceof Error ? error.message : String(error));
   } finally {
     redis.disconnect();
   }

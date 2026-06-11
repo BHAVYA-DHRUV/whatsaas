@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import { db } from '@/lib/db/drizzle';
-import { evolutionInstances } from '@/lib/db/schema';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
 import { pusherServer } from '@/lib/pusher-server';
 

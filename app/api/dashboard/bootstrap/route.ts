@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { sql, eq, desc, and } from 'drizzle-orm';
+import { sql, eq, desc, and, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
-import { chats, messages, evolutionInstances, teamMembers, users } from '@/lib/db/schema';
+import { chats, evolutionInstances, teamMembers } from '@/lib/db/schema';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
@@ -37,7 +37,10 @@ export async function GET(request: NextRequest) {
             unreadTotal: sql<number>`coalesce(sum(${chats.unreadCount}), 0)::int`,
           })
           .from(chats)
-          .where(eq(chats.teamId, team.id)),
+          .where(and(
+            eq(chats.teamId, team.id),
+            isNull(chats.deletedAt)
+          )),
         
         // Instances
         db.query.evolutionInstances.findMany({
@@ -56,14 +59,28 @@ export async function GET(request: NextRequest) {
         
         // Recent chats
         db.query.chats.findMany({
-          where: eq(chats.teamId, team.id),
+          where: and(
+            eq(chats.teamId, team.id),
+            isNull(chats.deletedAt)
+          ),
           columns: {
             id: true,
             remoteJid: true,
+            instanceId: true,
             name: true,
+            pushName: true,
             lastMessageText: true,
             lastMessageTimestamp: true,
             unreadCount: true,
+            isArchived: true,
+          },
+          with: {
+            contact: {
+              where: (contacts: any, { isNull }: any) => isNull(contacts.deletedAt),
+              columns: {
+                name: true,
+              },
+            },
           },
           orderBy: [desc(chats.lastMessageTimestamp)],
           limit: 5,
@@ -85,6 +102,9 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
+      console.log('[Dashboard] Recent chats query returned:', recentChats.length);
+      console.log('[Dashboard] Sample chat:', recentChats[0] ? { id: recentChats[0].id, remoteJid: recentChats[0].remoteJid, isArchived: recentChats[0].isArchived } : 'No chats');
+      console.log('[Dashboard] Building payload - recentChats:', recentChats.length, 'chatCount:', stats[0]?.chatCount);
       const payload: DashboardBootstrapData = {
         team: {
           id: team.id,
@@ -105,14 +125,27 @@ export async function GET(request: NextRequest) {
           integration: inst.integration,
           createdAt: inst.createdAt.toISOString(),
         })),
-        recentChats: recentChats.map(chat => ({
-          id: chat.id,
-          remoteJid: chat.remoteJid,
-          name: chat.name,
-          lastMessage: chat.lastMessageText,
-          lastMessageTimestamp: chat.lastMessageTimestamp?.toISOString() ?? null,
-          unreadCount: chat.unreadCount ?? 0,
-        })),
+        recentChats: recentChats.map(chat => {
+          const phone = chat.remoteJid.split('@')[0];
+          const contactName = chat.contact?.name;
+          
+          // Priority: contact.name > chat.name > chat.pushName > phone
+          const displayName = (contactName && contactName !== phone && contactName !== `+${phone}`)
+            ? contactName
+            : (chat.name && chat.name !== phone && chat.name !== `+${phone}`)
+              ? chat.name
+              : chat.pushName || chat.name || contactName || phone || 'Unknown';
+          
+          return {
+            id: chat.id,
+            remoteJid: chat.remoteJid,
+            instanceId: chat.instanceId,
+            name: displayName,
+            lastMessage: chat.lastMessageText,
+            lastMessageTimestamp: chat.lastMessageTimestamp?.toISOString() ?? null,
+            unreadCount: chat.unreadCount ?? 0,
+          };
+        }),
         teamMembers: teamMembersData.map(member => ({
           id: member.user.id,
           name: member.user.name,
@@ -157,6 +190,7 @@ type DashboardBootstrapData = {
     remoteJid: string;
     name: string | null;
     lastMessage: string | null;
+    messageType?: string;
     lastMessageTimestamp: string | null;
     unreadCount: number;
   }>;

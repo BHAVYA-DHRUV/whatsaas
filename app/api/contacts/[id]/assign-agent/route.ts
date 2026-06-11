@@ -1,11 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
-import { contacts, users, teamMembers, ActivityType, chats } from '@/lib/db/schema';
+import { contacts, teamMembers, ActivityType } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { logActivity } from '@/lib/db/activity';
 import { createSystemMessage } from '@/lib/db/system-messages';
 import { pusherServer } from '@/lib/pusher-server';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -69,6 +70,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     await pusherServer.trigger(`team-${team.id}`, 'contact-update', {
       chatId: updatedContact.chatId,
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(updatedContact);
   } catch (error: any) {

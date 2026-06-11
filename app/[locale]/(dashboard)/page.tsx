@@ -83,7 +83,7 @@ function DashboardPreview() {
           <div className="w-10" />
         </div>
 
-        <div className="flex h-150background">
+        <div className="flex h-150 background">
           
           <div className="w-17.5order-r border-border/40 flex flex-col items-center py-6 gap-6 bg-card/50">
             <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary/20 text-primary">

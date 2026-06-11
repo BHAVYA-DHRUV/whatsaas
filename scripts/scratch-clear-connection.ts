@@ -17,7 +17,7 @@ async function main() {
 
   console.log(`Step 2: Deleting instance "${instanceName}" from host database...`);
   try {
-    const deleteCount = await db.delete(evolutionInstances).where(eq(evolutionInstances.instanceName, instanceName));
+    await db.delete(evolutionInstances).where(eq(evolutionInstances.instanceName, instanceName));
     console.log('Host DB delete complete.');
   } catch (err: any) {
     console.error('Host DB delete failed:', err.message);

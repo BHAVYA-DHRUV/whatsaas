@@ -73,6 +73,9 @@ function formatChatRow(chat: ChatWithContact) {
     unreadCount: chat.unreadCount ?? 0,
     isPinned: chat.isPinned ?? false,
     isArchived: chat.isArchived ?? false,
+    pinnedAt: chat.pinnedAt ? chat.pinnedAt.toISOString() : null,
+    hasStarred: (chat as any).hasStarred ?? false,
+    hasMedia: (chat as any).hasMedia ?? false,
     contact: formattedContact,
   };
 }
@@ -81,42 +84,45 @@ function getDisplayName(chat: ChatWithContact): string {
   const phone = chat.remoteJid.split('@')[0];
   const contactName = chat.contact?.name;
   
-  if (contactName && contactName !== phone && contactName !== `+${phone}`) {
+  if (contactName && contactName.trim() !== '' && contactName !== phone && contactName !== `+${phone}`) {
     return contactName;
   }
 
-  const hasReadableName = chat.name && chat.name !== phone && chat.name !== `+${phone}`;
-  if (hasReadableName) {
-    return chat.name!;
+  if (chat.pushName && chat.pushName.trim() !== '' && chat.pushName !== phone && chat.pushName !== `+${phone}`) {
+    return chat.pushName;
   }
 
-  return (
-    chat.pushName ||
-    chat.name ||
-    chat.contact?.name ||
-    phone ||
-    'Unknown'
-  );
+  if (chat.name && chat.name.trim() !== '' && chat.name !== phone && chat.name !== `+${phone}`) {
+    return chat.name;
+  }
+
+  return phone || 'Unknown';
 }
 
 export async function getTeamChatsForInbox(
   permCtx: PermissionContext,
   options: Pick<ListChatsOptions, 'scope' | 'limit'> = {}
 ) {
+  console.log('[Service] getTeamChatsForInbox - teamId:', permCtx.teamId, 'scope:', options.scope, 'limit:', options.limit);
   const teamChats = await listChatsForTeam({
     teamId: permCtx.teamId,
     scope: options.scope,
     limit: options.limit,
   });
+  console.log('[Service] After listChatsForTeam, received chats:', teamChats.length);
 
   const departmentIds = permCtx.canSeeAllChats
     ? new Set<number>()
     : await getDepartmentIdsForUser(permCtx.userId);
 
+  console.log('[Service] Permission context - canSeeAllChats:', permCtx.canSeeAllChats, 'chatVisibility:', permCtx.chatVisibility, 'userId:', permCtx.userId);
+  console.log('[Service] Department IDs for user:', Array.from(departmentIds));
+
   const filtered = filterChatsByPermissions(teamChats, permCtx, departmentIds);
+  console.log('[Service] After permission filtering, chats:', filtered.length);
 
   const nameMap = new Map<string, typeof filtered[number]>();
-  const deduplicated: typeof filtered = [];
+  console.log('[Service] Starting deduplication...');
   for (const chat of filtered) {
     const isGroup = chat.remoteJid.endsWith('@g.us');
     const name = getDisplayName(chat);
@@ -124,11 +130,47 @@ export async function getTeamChatsForInbox(
     const isRawNumber = name === phone || name === `+${phone}` || /^\+?\d+$/.test(name);
     const key = isGroup ? chat.remoteJid : (isRawNumber ? phone : name);
     
-    if (!nameMap.has(key)) {
+    // Keep the chat with the most recent message
+    const existing = nameMap.get(key);
+    if (!existing) {
       nameMap.set(key, chat);
-      deduplicated.push(chat);
+    } else {
+      // Compare timestamps to keep the most recent
+      const existingTime = existing.lastMessageTimestamp?.getTime() || 0;
+      const newTime = chat.lastMessageTimestamp?.getTime() || 0;
+      if (newTime > existingTime) {
+        nameMap.set(key, chat);
+      }
     }
   }
 
-  return deduplicated.map(formatChatRow);
+  const deduplicated = Array.from(nameMap.values());
+  console.log('[Service] After deduplication, chats:', deduplicated.length);
+  
+  // Sort by lastMessageTimestamp descending (most recent first), then by pinned status
+  deduplicated.sort((a, b) => {
+    // Pinned chats always come first
+    if (a.isPinned && !b.isPinned) return -1;
+    if (!a.isPinned && b.isPinned) return 1;
+    
+    // If both pinned, sort by pinnedAt
+    if (a.isPinned && b.isPinned) {
+      const aPinnedAt = a.pinnedAt?.getTime() || 0;
+      const bPinnedAt = b.pinnedAt?.getTime() || 0;
+      if (aPinnedAt !== bPinnedAt) {
+        return bPinnedAt - aPinnedAt; // More recent pinned first
+      }
+    }
+    
+    // Sort by lastMessageTimestamp (most recent first)
+    const aTime = a.lastMessageTimestamp?.getTime() || 0;
+    const bTime = b.lastMessageTimestamp?.getTime() || 0;
+    return bTime - aTime;
+  });
+  
+  console.log('[Service] After sorting, chats:', deduplicated.length);
+  const formatted = deduplicated.map(formatChatRow);
+  console.log('[Service] After formatChatRow, returning chats:', formatted.length);
+  console.log('[Service] Sample formatted chat:', formatted[0] ? { id: formatted[0].id, remoteJid: formatted[0].remoteJid, isArchived: formatted[0].isArchived } : 'No chats');
+  return formatted;
 }

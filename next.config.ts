@@ -1,6 +1,19 @@
 import path from 'node:path';
+import fs from 'node:fs';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
+
+// Automatically delete deprecated middleware.ts if proxy.ts is present
+// to prevent Next.js from throwing boot conflicts.
+const oldMiddlewarePath = path.resolve(__dirname, 'middleware.ts');
+if (fs.existsSync(oldMiddlewarePath)) {
+  try {
+    fs.unlinkSync(oldMiddlewarePath);
+    console.log('[Self-Healing] Successfully deleted deprecated middleware.ts to avoid Next.js boot conflicts.');
+  } catch (err) {
+    console.error('[Self-Healing] Error deleting deprecated middleware.ts:', err);
+  }
+}
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
 
@@ -28,6 +41,9 @@ const nextConfig: ExtendedNextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   experimental: {
+    serverActions: {
+      allowedOrigins: ['localhost:3000', '127.0.0.1:3000'],
+    },
     optimizePackageImports: [
       'lucide-react',
       '@radix-ui/react-dialog',

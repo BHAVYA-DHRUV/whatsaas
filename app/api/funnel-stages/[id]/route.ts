@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
       const team = await getTeamForUser();
       if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

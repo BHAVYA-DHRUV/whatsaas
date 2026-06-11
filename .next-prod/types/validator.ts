@@ -749,6 +749,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/chats/archive/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/chats/archive">> = Specific
+  const handler = {} as typeof import("../../app/api/chats/archive/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/chats/delete/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/chats/delete">> = Specific
@@ -785,10 +794,28 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/chats/pinned/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/chats/pinned">> = Specific
+  const handler = {} as typeof import("../../app/api/chats/pinned/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/chats/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/chats">> = Specific
   const handler = {} as typeof import("../../app/api/chats/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/chats/search/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/chats/search">> = Specific
+  const handler = {} as typeof import("../../app/api/chats/search/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -1136,6 +1163,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../app/api/instance/sync-chats/auto/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/instance/sync-chats/auto">> = Specific
+  const handler = {} as typeof import("../../app/api/instance/sync-chats/auto/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../app/api/instance/sync-chats/import/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/instance/sync-chats/import">> = Specific
@@ -1230,6 +1266,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/messages/sendMedia">> = Specific
   const handler = {} as typeof import("../../app/api/messages/sendMedia/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/metrics/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/metrics">> = Specific
+  const handler = {} as typeof import("../../app/api/metrics/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
@@ -1347,6 +1392,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/settings/twilio">> = Specific
   const handler = {} as typeof import("../../app/api/settings/twilio/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../app/api/status/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/status">> = Specific
+  const handler = {} as typeof import("../../app/api/status/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

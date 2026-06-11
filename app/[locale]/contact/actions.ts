@@ -17,7 +17,7 @@ export type ContactActionState = {
   error?: string;
 };
 
-export async function sendContactMessage(prevState: ContactActionState, formData: FormData): Promise<ContactActionState> {
+export async function sendContactMessage(_prevState: ContactActionState, formData: FormData): Promise<ContactActionState> {
   const branding = await getBranding();
   const siteName = branding?.name || 'WhatSaaS';
 

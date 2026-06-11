@@ -38,7 +38,7 @@ export function useChatMessages(baseKey: string | null) {
   const { data, error, isLoading, mutate } = useSWR<MessagesState>(swrKey, messagesFetcher, {
     revalidateOnFocus: false,
     revalidateIfStale: false,
-    keepPreviousData: true,
+    keepPreviousData: false,
     dedupingInterval: 2_000,
   });
 

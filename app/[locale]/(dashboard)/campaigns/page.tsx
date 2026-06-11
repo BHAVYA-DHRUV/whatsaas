@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import { useEffect } from 'react';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { Plus, Megaphone, Calendar, Loader2, Play, Clock } from 'lucide-react';
@@ -16,12 +16,12 @@ export default function CampaignsPage() {
     const { data: campaigns, isLoading, mutate } = useSWR('/api/campaigns/list', fetcher);
     const hasProcessing = campaigns?.some((c: any) => c.status === 'PROCESSING');
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (!hasProcessing) return;
         const interval = setInterval(() => mutate(), 5000);
         return () => clearInterval(interval);
     }, [hasProcessing, mutate]);
-    const { data: featureData, isLoading: isFeatureLoading } = useSWR('/api/features?name=isCampaignsEnabled', fetcher);
+    const { data: featureData } = useSWR('/api/features?name=isCampaignsEnabled', fetcher);
 
     const handleStart = async (id: number) => {
         try {

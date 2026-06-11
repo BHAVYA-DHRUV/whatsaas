@@ -4,7 +4,7 @@ import { getBullConnection } from '../../lib/queue/redis-connection';
 import { QUEUE_NAMES } from '../../lib/queue/queues';
 
 /** Monitors dead-letter queue for alerting / manual replay. */
-const worker = new Worker(
+new Worker(
   QUEUE_NAMES.dlq,
   async (job) => {
     console.error('[dlq]', JSON.stringify(job.data));

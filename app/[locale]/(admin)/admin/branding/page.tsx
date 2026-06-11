@@ -1,7 +1,6 @@
 
 import { BrandingForm } from "./BrandingForm";
 import { db } from "@/lib/db/drizzle";
-import { branding } from "@/lib/db/schema";
 
 export default async function BrandingPage() {
   const brandingData = await db.query.branding.findFirst();

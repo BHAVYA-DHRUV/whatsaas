@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Pin, BellOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,7 @@ import {
   getChatInitials,
   isContactOnline,
 } from '@/lib/inbox/utils';
+import { LiveTimestamp } from '@/components/inbox/LiveTimestamp';
 
 export type Agent = {
   id: number;
@@ -57,6 +58,9 @@ export type Chat = {
   unreadCount?: number;
   isPinned?: boolean;
   isArchived?: boolean;
+  pinnedAt?: string | null;
+  hasStarred?: boolean;
+  hasMedia?: boolean;
   createdAt?: string;
   updatedAt?: string;
   contact?: Contact;
@@ -86,9 +90,14 @@ export const ChatListItem = memo(function ChatListItem({
   onSelect,
   isMuted = false,
 }: ChatListItemProps) {
-  const displayName = useMemo(() => getChatDisplayName(chat), [chat]);
+  // Depend only on name-related fields — not the full chat object.
+  // This prevents recalculation when unreadCount/lastMessage change.
+  const displayName = useMemo(
+    () => getChatDisplayName(chat),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chat.name, chat.pushName, chat.remoteJid, chat.contact?.name, chat.contact?.phone]
+  );
   const preview = useMemo(() => chat.lastMessage || chat.lastMessageText || 'No messages yet', [chat.lastMessage, chat.lastMessageText]);
-  const formattedTime = useMemo(() => formatChatListTime(chat.lastMessageTimestamp), [chat.lastMessageTimestamp]);
   const online = useMemo(() => isContactOnline(chat.lastCustomerInteraction), [chat.lastCustomerInteraction]);
   const unread = chat.unreadCount ?? 0;
 
@@ -131,15 +140,15 @@ export const ChatListItem = memo(function ChatListItem({
             {chat.isPinned && <Pin className="h-3 w-3 shrink-0 text-muted-foreground rotate-45" />}
             {isMuted && <BellOff className="h-3 w-3 shrink-0 text-muted-foreground" />}
           </div>
-          {formattedTime && (
-            <span
+          {chat.lastMessageTimestamp && (
+            <LiveTimestamp
+              timestamp={chat.lastMessageTimestamp}
+              formatFn={formatChatListTime}
               className={cn(
                 'shrink-0 text-[11px]',
                 unread > 0 ? 'font-semibold text-primary' : 'text-muted-foreground'
               )}
-            >
-              {formattedTime}
-            </span>
+            />
           )}
         </div>
 

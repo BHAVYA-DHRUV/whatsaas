@@ -14,7 +14,7 @@ async function main() {
     const sample = await sql`SELECT * FROM evolution."Session" LIMIT 1;`;
     console.log('Sample row:', sample);
   } catch (err) {
-    console.error('Failed to get schema:', err.message);
+    console.error('Failed to get schema:', err instanceof Error ? err.message : String(err));
   } finally {
     await sql.end();
   }

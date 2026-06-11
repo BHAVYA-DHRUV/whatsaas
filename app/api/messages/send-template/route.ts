@@ -4,6 +4,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { evolutionInstances, wabaTemplates, chats, messages } from '@/lib/db/schema';
 import { eq, and, or, like } from 'drizzle-orm';
 import { formatMessageForFrontend } from '@/lib/db/messages';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function POST(request: Request) {
   try {
@@ -173,6 +174,8 @@ export async function POST(request: Request) {
       const [inserted] = await tx.insert(messages).values(newMessageData).returning();
       savedMessage = inserted;
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(formatMessageForFrontend(savedMessage || {}));
 

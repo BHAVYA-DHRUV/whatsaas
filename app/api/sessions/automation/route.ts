@@ -19,7 +19,10 @@ export async function GET() {
       with: {
         automation: { columns: { id: true, name: true } },
         chat: { columns: { id: true, remoteJid: true, name: true, pushName: true, profilePicUrl: true } },
-        contact: { columns: { name: true } },
+        contact: {
+          where: (contacts: any, { isNull }: any) => isNull(contacts.deletedAt),
+          columns: { name: true }
+        },
       },
       orderBy: (t, { desc }) => [desc(t.updatedAt)],
     });

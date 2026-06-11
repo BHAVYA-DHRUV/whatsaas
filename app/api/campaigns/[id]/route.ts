@@ -4,7 +4,7 @@ import { getTeamForUser } from '@/lib/db/queries';
 import { campaigns, campaignLeads } from '@/lib/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
 
-export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const team = await getTeamForUser();
     if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

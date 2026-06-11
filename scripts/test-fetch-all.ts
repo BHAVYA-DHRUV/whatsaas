@@ -9,7 +9,7 @@ async function main() {
     const list = await EvolutionSDK.fetchInstances();
     console.log('Instances list from container:', JSON.stringify(list, null, 2));
   } catch (err) {
-    console.error('Failed to fetch instances:', err.message);
+    console.error('Failed to fetch instances:', err instanceof Error ? err.message : String(err));
   }
 }
 

@@ -13,7 +13,7 @@ async function main() {
       const deleteResult = await EvolutionSDK.deleteInstance(instanceName);
       console.log('Delete response:', deleteResult);
     } catch (e) {
-      console.log('Delete failed (might not exist on container):', e.message);
+      console.log('Delete failed (might not exist on container):', e instanceof Error ? e.message : String(e));
     }
     
     console.log(`Recreating instance: ${instanceName}`);
@@ -30,7 +30,7 @@ async function main() {
     const qrResult = await EvolutionSDK.fetchQR(instanceName);
     console.log('QR Code response:', JSON.stringify(qrResult, null, 2));
   } catch (err) {
-    console.error('Error during recreation/fetch:', err.message);
+    console.error('Error during recreation/fetch:', err instanceof Error ? err.message : String(err));
   }
 }
 

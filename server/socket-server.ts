@@ -1,8 +1,9 @@
+process.env.TZ = 'UTC';
 import 'dotenv/config';
 import express from 'express';
 import { createServer } from 'node:http';
 import { Server } from 'socket.io';
-import IORedis from 'ioredis';
+import { getSubscriberConnection, getRedisConnectionManager } from '@/lib/redis/connection-manager';
 import { logger } from '@/lib/logger';
 
 const app = express();
@@ -40,6 +41,15 @@ const DEDUPE_TTL_MS = 5_000;
 
 const recentEvents = new Map<string, number>();
 
+// Socket server metrics
+const serverMetrics = {
+  totalConnections: 0,
+  activeConnections: 0,
+  totalMessages: 0,
+  totalErrors: 0,
+  startTime: Date.now(),
+};
+
 function buildEventKey(room: string, event: string, data: unknown) {
   const stableData =
     typeof data === 'object' && data !== null
@@ -68,14 +78,11 @@ function shouldBroadcast(room: string, event: string, data: unknown) {
 }
 
 function isValidRoomName(roomName: unknown): roomName is string {
-  return typeof roomName === 'string' && /^team-\d+$/.test(roomName);
+  return (
+    typeof roomName === 'string' &&
+    /^(team[-:]\d+|instance:[\w-]+|chat:[\w-]+)$/.test(roomName)
+  );
 }
-
-let redisSubscriber: IORedis | null = null;
-let redisConnected = false;
-let reconnectAttempts = 0;
-const MAX_RECONNECT_ATTEMPTS = 10;
-const BASE_RECONNECT_DELAY_MS = 1000;
 
 function setupRedisSubscriber() {
   if (!REDIS_URL) {
@@ -83,54 +90,21 @@ function setupRedisSubscriber() {
     return;
   }
 
-  redisSubscriber = new IORedis(REDIS_URL, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    retryStrategy: (times) => {
-      if (times > MAX_RECONNECT_ATTEMPTS) {
-        logger.error('[socket-server] Max Redis reconnection attempts reached. Giving up.');
-        return null;
-      }
-      const delay = Math.min(BASE_RECONNECT_DELAY_MS * Math.pow(2, times), 30000);
-      logger.info(`[socket-server] Redis reconnection attempt ${times} in ${delay}ms`);
-      return delay;
-    },
-  });
+  const redisSubscriber = getSubscriberConnection();
+  if (!redisSubscriber) {
+    logger.error('[socket-server] Failed to get Redis subscriber connection from manager');
+    return;
+  }
 
-  redisSubscriber.on('connect', () => {
-    redisConnected = true;
-    reconnectAttempts = 0;
-    logger.info('[socket-server] Connected to Redis subscriber channel');
-  });
-
-  redisSubscriber.on('ready', () => {
-    redisConnected = true;
-    reconnectAttempts = 0;
-    logger.info('[socket-server] Redis subscriber ready');
+  redisSubscriber.on('ready', async () => {
+    logger.info('[socket-server] Redis subscriber ready, subscribing to channel');
     
-    redisSubscriber!.subscribe(REDIS_CHANNEL, (err, count) => {
-      if (err) {
-        logger.error(`[socket-server] Failed to subscribe to ${REDIS_CHANNEL}: ${err.message}`);
-        return;
-      }
-      logger.info(`[socket-server] Subscribed to ${count} Redis channel(s)`);
-    });
-  });
-
-  redisSubscriber.on('error', (err) => {
-    redisConnected = false;
-    const errorMessage = err instanceof Error ? err.message : String(err);
-    logger.error(`[socket-server] Redis subscriber error: ${errorMessage}`);
-  });
-
-  redisSubscriber.on('close', () => {
-    redisConnected = false;
-    logger.warn('[socket-server] Redis subscriber connection closed');
-  });
-
-  redisSubscriber.on('reconnecting', (delay: number) => {
-    reconnectAttempts++;
-    logger.info(`[socket-server] Redis subscriber reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
+    try {
+      await redisSubscriber.subscribe(REDIS_CHANNEL);
+      logger.info(`[socket-server] Subscribed to Redis channel: ${REDIS_CHANNEL}`);
+    } catch (err) {
+      logger.error(`[socket-server] Failed to subscribe to ${REDIS_CHANNEL}:`, err);
+    }
   });
 
   redisSubscriber.on('message', (channel, message) => {
@@ -154,20 +128,26 @@ function setupRedisSubscriber() {
       logger.error(`[socket-server] Failed to broadcast pub/sub message: ${message}`);
     }
   });
+
+  logger.info('[socket-server] Redis subscriber setup complete');
 }
 
 setupRedisSubscriber();
 
 io.on('connection', (socket) => {
-  logger.info(`[SOCKET_CONNECTED] Client connected: socketId=${socket.id}`);
+  serverMetrics.totalConnections++;
+  serverMetrics.activeConnections++;
+  logger.info(`[SOCKET_CONNECTED] Client connected: socketId=${socket.id} totalConnections=${serverMetrics.totalConnections} activeConnections=${serverMetrics.activeConnections}`);
 
   socket.on('join-room', (roomName: unknown, callback?: (payload: { ok: boolean }) => void) => {
     if (!isValidRoomName(roomName)) {
+      logger.warn(`[socket-server] Invalid room name attempted: socketId=${socket.id} roomName=${roomName}`);
       callback?.({ ok: false });
       return;
     }
 
     socket.join(roomName);
+    logger.debug(`[socket-server] Socket joined room: socketId=${socket.id} room=${roomName}`);
     callback?.({ ok: true });
   });
 
@@ -176,19 +156,27 @@ io.on('connection', (socket) => {
   });
 
   socket.on('typing', (payload: any) => {
+    serverMetrics.totalMessages++;
     if (payload && isValidRoomName(payload.room)) {
       socket.to(payload.room).emit(`${payload.room}:typing`, payload);
     }
   });
 
   socket.on('presence-update', (payload: any) => {
+    serverMetrics.totalMessages++;
     if (payload && isValidRoomName(payload.room)) {
       socket.to(payload.room).emit(`${payload.room}:presence-update`, payload);
     }
   });
 
   socket.on('disconnect', (reason) => {
-    logger.info(`[socket-server] Client disconnected: socketId=${socket.id} reason=${reason}`);
+    serverMetrics.activeConnections--;
+    logger.info(`[socket-server] Client disconnected: socketId=${socket.id} reason=${reason} activeConnections=${serverMetrics.activeConnections}`);
+  });
+
+  socket.on('error', (error) => {
+    serverMetrics.totalErrors++;
+    logger.error(`[socket-server] Socket error: socketId=${socket.id} error=${error.message}`);
   });
 });
 
@@ -201,10 +189,27 @@ app.get('/health', (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
+  const manager = getRedisConnectionManager();
+  const redisHealth = manager.getHealthStatus();
+  const uptime = Date.now() - serverMetrics.startTime;
+  
   res.json({
     status: 'ok',
-    socketConnections: io.sockets.sockets.size,
-    redis: redisConnected ? 'connected' : 'disabled',
+    uptime: Math.floor(uptime / 1000),
+    socket: {
+      connections: io.sockets.sockets.size,
+      totalConnections: serverMetrics.totalConnections,
+      activeConnections: serverMetrics.activeConnections,
+      totalMessages: serverMetrics.totalMessages,
+      totalErrors: serverMetrics.totalErrors,
+    },
+    redis: {
+      configured: !!REDIS_URL,
+      subscriber: redisHealth.subscriber,
+      publisher: redisHealth.publisher,
+      worker: redisHealth.worker,
+      cache: redisHealth.cache,
+    },
   });
 });
 

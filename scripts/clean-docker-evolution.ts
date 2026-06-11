@@ -22,12 +22,12 @@ async function main() {
         console.log(`Clearing evolution."${table}" (currently ${countBefore[0].cnt} rows)...`);
         await sql`TRUNCATE TABLE evolution.${sql(table)} CASCADE;`;
       } catch (e) {
-        console.log(`Failed to clear evolution."${table}":`, e.message);
+        console.log(`Failed to clear evolution."${table}":`, e instanceof Error ? e.message : String(e));
       }
     }
     console.log('Evolution schema cleared successfully!');
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Error:', err instanceof Error ? err.message : String(err));
   } finally {
     await sql.end();
   }

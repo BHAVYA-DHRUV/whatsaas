@@ -3,6 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { contacts, contactTags } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -52,6 +53,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         }
     });
 
+    await cacheInvalidateTeam(team.id);
+
     return NextResponse.json({ success: true });
 
   } catch (error: any) {
@@ -60,16 +63,18 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
       const team = await getTeamForUser();
       if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       const { id } = await params;
       const contactId = parseInt(id);
-      const deleted = await db.delete(contacts)
+      const deleted = await db.update(contacts)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
         .where(and(eq(contacts.id, contactId), eq(contacts.teamId, team.id)))
         .returning();
       if (!deleted.length) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
+      await cacheInvalidateTeam(team.id);
       return NextResponse.json({ success: true });
     } catch (error: any) {
       return NextResponse.json({ error: 'Error deleting contact' }, { status: 500 });

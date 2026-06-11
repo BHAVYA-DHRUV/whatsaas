@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
-import { departments, departmentMembers } from '@/lib/db/schema';
+import { departments } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 

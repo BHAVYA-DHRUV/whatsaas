@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import Link from 'next/link';
 import {
-    ArrowLeft, Save, Loader2, Plus, Trash2,
+    ArrowLeft, Save, Loader2, Trash2,
     Type, Info, Smartphone
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -35,7 +35,7 @@ export default function NewTemplatePage() {
     const { data: instances, isLoading: loadingInstances } = useSWR<InstanceItem[]>('/api/instance/details', fetcher);
     const { data: featureData, isLoading: isFeatureLoading } = useSWR('/api/features?name=isTemplatesEnabled', fetcher);
     
-    const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
+    const [selectedInstanceId, setSelectedInstanceId] = useState<number | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     
@@ -65,7 +65,7 @@ export default function NewTemplatePage() {
 
     useEffect(() => {
         if (wabaInstances.length > 0 && !selectedInstanceId) {
-            setSelectedInstanceId(wabaInstances[0].dbId.toString());
+            setSelectedInstanceId(wabaInstances[0].dbId);
         }
     }, [wabaInstances, selectedInstanceId]); 
 
@@ -241,7 +241,7 @@ export default function NewTemplatePage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2 col-span-2">
                                     <Label>{t('waba_instance_label')}</Label>
-                                    <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                                    <Select value={selectedInstanceId?.toString()} onValueChange={(val) => setSelectedInstanceId(Number(val))}>
                                         <SelectTrigger><SelectValue placeholder={t('select_instance_placeholder')} /></SelectTrigger>
                                         <SelectContent>
                                             {wabaInstances.map(inst => (

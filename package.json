@@ -2,6 +2,7 @@
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run socket:dev\" \"npm run workers:all\" \"next dev\"",
+    "dev:lite": "concurrently \"npm run socket:dev\" \"next dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

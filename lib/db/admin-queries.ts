@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { users, teams, teamMembers, activityLogs, plans } from '@/lib/db/schema';
+import { users, teams, activityLogs, plans } from '@/lib/db/schema';
 import { count, eq, desc, sql, ilike, and, or, type SQL } from 'drizzle-orm';
 
 

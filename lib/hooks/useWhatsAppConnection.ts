@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getTeamChannel } from '@/lib/pusher-client';
-import { fetcher } from '@/components/chat/utils';
 
 interface ConnectionStatus {
   status: 'connecting' | 'close' | 'open' | 'waiting_qr' | 'unknown' | 'connected' | 'disconnected';

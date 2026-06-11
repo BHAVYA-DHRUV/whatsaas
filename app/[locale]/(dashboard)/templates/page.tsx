@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import useSWR, { mutate } from 'swr';
 import Link from 'next/link';
 import {
@@ -68,9 +68,9 @@ export default function TemplatesPage() {
     const t = useTranslations('Templates');
     const { data: templates, isLoading: loadingTemplates } = useSWR<WabaTemplate[]>('/api/templates/list', fetcher);
     const { data: instances, isLoading: loadingInstances } = useSWR<InstanceItem[]>('/api/instance/details', fetcher);
-    const { data: featureData, isLoading: isFeatureLoading } = useSWR('/api/features?name=isTemplatesEnabled', fetcher);
+    const { data: featureData } = useSWR('/api/features?name=isTemplatesEnabled', fetcher);
     
-    const [selectedInstanceId, setSelectedInstanceId] = useState<string>('');
+    const [selectedInstanceId, setSelectedInstanceId] = useState<number | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTemplate, setSelectedTemplate] = useState<WabaTemplate | null>(null);
@@ -80,7 +80,7 @@ export default function TemplatesPage() {
 
     useEffect(() => {
         if (wabaInstances.length > 0 && !selectedInstanceId) {
-            setSelectedInstanceId(wabaInstances[0].dbId.toString());
+            setSelectedInstanceId(wabaInstances[0].dbId);
         }
     }, [wabaInstances]);
 
@@ -129,7 +129,7 @@ export default function TemplatesPage() {
     }
 
     const filteredTemplates = templates?.filter(t => 
-        t.instanceId.toString() === selectedInstanceId &&
+        t.instanceId === selectedInstanceId &&
         t.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) || [];
 
@@ -141,7 +141,7 @@ export default function TemplatesPage() {
                     <p className="text-sm text-muted-foreground">{t('message_templates_desc')}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Select value={selectedInstanceId} onValueChange={setSelectedInstanceId}>
+                    <Select value={selectedInstanceId?.toString()} onValueChange={(val) => setSelectedInstanceId(Number(val))}>
                         <SelectTrigger className="w-50 bg-background">
                             <SelectValue placeholder={t('select_instance_placeholder')} />
                         </SelectTrigger>

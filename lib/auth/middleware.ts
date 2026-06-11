@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TeamDataWithMembers, User } from '@/lib/db/schema';
+import { User } from '@/lib/db/schema';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { redirect } from 'next/navigation';
 
@@ -35,7 +35,7 @@ export function validatedAction<S extends z.ZodType<any, any>, T>(
   schema: S,
   action: ValidatedActionFunction<S, T>
 ) {
-  return async (prevState: ActionState, formData: FormData) => {
+  return async (_prevState: ActionState, formData: FormData) => {
     try {
       const result = schema.safeParse(Object.fromEntries(formData));
       if (!result.success) {
@@ -63,7 +63,7 @@ export function validatedActionWithUser<S extends z.ZodType<any, any>, T>(
   schema: S,
   action: ValidatedActionWithUserFunction<S, T>
 ) {
-  return async (prevState: ActionState, formData: FormData) => {
+  return async (_prevState: ActionState, formData: FormData) => {
     try {
       const user = await getUser();
       if (!user) {

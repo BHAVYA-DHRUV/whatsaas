@@ -9,7 +9,7 @@ function isEvolutionUnavailableError(error: unknown) {
   return /fetch failed|ECONNREFUSED|ETIMEDOUT|timed out|Unable to connect/i.test(message);
 }
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const evoConfig = await getEvolutionConfig();
     if (!evoConfig.apiKey) throw new Error("API Key not configured.");

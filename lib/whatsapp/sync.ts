@@ -1,6 +1,5 @@
 import { db } from '../db/drizzle';
-import { chats, contacts, messages, evolutionInstances } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { chats, contacts, messages } from '../db/schema';
 import { getEvolutionConfig } from './config';
 import { pusherServer } from '../pusher-server';
 import fs from 'fs/promises';

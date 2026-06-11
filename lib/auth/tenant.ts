@@ -1,6 +1,6 @@
 import { db } from '@/lib/db/drizzle';
 import { chats, contacts, messages, automations } from '@/lib/db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { getTeamForUser } from '@/lib/db/queries';
 
 export class TenantAccessError extends Error {
@@ -31,8 +31,8 @@ export async function assertMessageBelongsToTeam(messageId: string, teamId: numb
   const row = await db
     .select({ id: messages.id })
     .from(messages)
-    .innerJoin(chats, eq(messages.chatId, chats.id))
-    .where(and(eq(messages.id, messageId), eq(chats.teamId, teamId)))
+    .innerJoin(chats, and(eq(messages.chatId, chats.id), isNull(chats.deletedAt)))
+    .where(and(eq(messages.id, messageId), eq(chats.teamId, teamId), isNull(messages.deletedAt)))
     .limit(1);
   if (!row.length) throw new TenantAccessError();
   return row[0];
@@ -40,7 +40,7 @@ export async function assertMessageBelongsToTeam(messageId: string, teamId: numb
 
 export async function assertContactBelongsToTeam(contactId: number, teamId: number) {
   const row = await db.query.contacts.findFirst({
-    where: and(eq(contacts.id, contactId), eq(contacts.teamId, teamId)),
+    where: and(eq(contacts.id, contactId), eq(contacts.teamId, teamId), isNull(contacts.deletedAt)),
     columns: { id: true },
   });
   if (!row) throw new TenantAccessError();

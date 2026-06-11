@@ -231,7 +231,7 @@ export class GeminiProvider implements AIProvider {
     }
   }
 
-  async transcribeAudio(audioUrl: string): Promise<string> {
+  async transcribeAudio(_audioUrl: string): Promise<string> {
     return "Audio content"; 
   }
 }

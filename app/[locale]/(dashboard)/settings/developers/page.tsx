@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trash2, Copy, Plus, Key, Terminal, Loader2, Check, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Copy, Plus, Key, Terminal, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { getApiKeys, createApiKey, deleteApiKey } from './actions';
 import { useTranslations } from 'next-intl';

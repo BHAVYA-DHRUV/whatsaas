@@ -6,7 +6,6 @@ import { eq, and } from 'drizzle-orm';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
 import { QRManager } from '@/lib/whatsapp/qr-manager';
 import { pusherServer } from '@/lib/pusher-server';
-import { EvolutionSDK } from '@/lib/whatsapp/evolution-sdk';
 
 function isEvolutionUnavailableError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);

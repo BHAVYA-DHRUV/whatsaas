@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/table';
 import {
   Phone,
-  PhoneOff,
   PhoneMissed,
   ChevronLeft,
   ChevronRight,

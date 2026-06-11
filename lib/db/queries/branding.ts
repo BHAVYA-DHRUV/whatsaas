@@ -12,7 +12,16 @@ const DEFAULT_BRANDING = {
 };
 
 const queryWithTimeout = <T>(promise: Promise<T>, ms = 2500): Promise<T> => {
-  return promise;
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Database query timed out after ${ms}ms`));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 };
 
 const loadBranding = unstable_cache(

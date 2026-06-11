@@ -1,5 +1,5 @@
 import { db } from '@/lib/db/drizzle';
-import { apiKeys, teams } from '@/lib/db/schema';
+import { apiKeys } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { getTeamForUser } from '@/lib/db/queries';
 import { NextRequest } from 'next/server';

@@ -93,7 +93,7 @@ export async function adminSendResetLink(userId: number): Promise<ActionState> {
 
 export async function adminSetPassword(userId: number, newPassword: string): Promise<ActionState> {
   try {
-    const currentUser = await verifyAdmin();
+    await verifyAdmin();
 
     if (newPassword.length < 8) {
       return { error: 'Password must be at least 8 characters.' };
@@ -148,7 +148,7 @@ export async function deleteTeam(teamId: number): Promise<ActionState> {
   }
 }
 
-export async function upsertPlan(prevState: ActionState, formData: FormData): Promise<ActionState> {
+export async function upsertPlan(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   try {
     await verifyAdmin();
 

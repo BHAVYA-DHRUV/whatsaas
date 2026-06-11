@@ -36,7 +36,7 @@ export async function getAiConfig() {
   return config;
 }
 
-export async function saveAiConfig(prevState: AiActionState, formData: FormData): Promise<AiActionState> {
+export async function saveAiConfig(_prevState: AiActionState, formData: FormData): Promise<AiActionState> {
   const team = await getTeamForUser();
   if (!team) return { error: 'Unauthorized' };
 

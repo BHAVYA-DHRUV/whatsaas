@@ -218,7 +218,7 @@ export default function NewCampaignPage() {
                                         <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
                                             <SelectTrigger><SelectValue placeholder={t('content.template_placeholder')} /></SelectTrigger>
                                             <SelectContent>
-                                                {templates?.filter((t: any) => t.status === 'APPROVED' && t.instanceId.toString() === instanceId).map((t: any) => (
+                                                {templates?.filter((t: any) => t.status === 'APPROVED' && t.instanceId === Number(instanceId)).map((t: any) => (
                                                     <SelectItem key={t.id} value={t.id.toString()}>{t.name} ({t.language})</SelectItem>
                                                 ))}
                                             </SelectContent>

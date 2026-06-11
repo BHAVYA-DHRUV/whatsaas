@@ -992,7 +992,7 @@ function InviteTeamMember() {
     (m) => m.userId === user?.id && m.role === 'owner'
   );
 
-  const [inviteState, inviteAction, isInvitePending] = useActionState<ActionState, FormData>(
+  const [, inviteAction, isInvitePending] = useActionState<ActionState, FormData>(
     async (prevState, formData) => {
         const result: ActionState = await inviteTeamMember(prevState, formData);
         if (result.success) {

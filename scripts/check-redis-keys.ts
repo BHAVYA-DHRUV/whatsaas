@@ -17,9 +17,11 @@ async function main() {
       console.log(`Key: ${key}, Value: ${val}, TTL: ${ttl}s`);
     }
   } catch (error) {
-    console.error('Error querying Redis:', error.message);
+    console.error('Error querying Redis:', error instanceof Error ? error.message : String(error));
   } finally {
-    redis.disconnect();
+    if (redis && 'disconnect' in redis) {
+      (redis as any).disconnect();
+    }
   }
 }
 

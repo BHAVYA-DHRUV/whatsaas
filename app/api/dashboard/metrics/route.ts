@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, and, isNull } from 'drizzle-orm';
 import { db } from '@/lib/db/drizzle';
 import { chats } from '@/lib/db/schema';
 import { getTeamForUser } from '@/lib/db/queries';
@@ -36,7 +36,10 @@ export async function GET(request: NextRequest) {
           unreadTotal: sql<number>`coalesce(sum(${chats.unreadCount}), 0)::int`,
         })
         .from(chats)
-        .where(eq(chats.teamId, team.id));
+        .where(and(
+          eq(chats.teamId, team.id),
+          isNull(chats.deletedAt)
+        )) as any;
 
       const payload = {
         chatCount: stats?.chatCount ?? 0,

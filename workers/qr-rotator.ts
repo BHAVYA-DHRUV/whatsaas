@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { db } from '@/lib/db/drizzle';
-import { evolutionInstances, webhookEvents } from '@/lib/db/schema';
+import { webhookEvents } from '@/lib/db/schema';
 import { pusherServer } from '@/lib/pusher-server';
 import { getEvolutionConfig } from '@/lib/whatsapp/config';
 

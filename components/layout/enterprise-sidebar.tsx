@@ -10,8 +10,7 @@ import Logo from '@/components/interface/Logo';
 import { MAIN_NAV, SECONDARY_NAV, filterNavByPermissions } from '@/lib/navigation/app-nav';
 import { getPermissions, type MemberPermissions } from '@/lib/permissions';
 import useSWR from 'swr';
-
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+import { apiFetcher } from '@/lib/fetcher';
 
 type TeamMemberRow = {
   role: string;
@@ -23,9 +22,18 @@ export function EnterpriseSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { data: teamData } = useSWR<{ teamMembers?: (TeamMemberRow & { user?: { id: number } })[] }>(
     '/api/team',
-    fetcher
+    apiFetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateIfStale: false,
+      dedupingInterval: 60_000,
+    }
   );
-  const { data: user } = useSWR<{ id: number; email: string }>('/api/user', fetcher);
+  const { data: user } = useSWR<{ id: number; email: string }>('/api/user', apiFetcher, {
+    revalidateOnFocus: false,
+    revalidateIfStale: false,
+    dedupingInterval: 60_000,
+  });
 
   const myMembership = teamData?.teamMembers?.find((tm) => tm.user?.id === user?.id);
   const permissions = getPermissions(myMembership?.role ?? 'owner', myMembership?.permissions);

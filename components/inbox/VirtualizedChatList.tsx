@@ -40,12 +40,14 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
   chat,
   isActive,
   href,
-  style,
+  itemHeight,
+  itemTop,
 }: {
   chat: Chat;
   isActive: boolean;
   href: string;
-  style: React.CSSProperties;
+  itemHeight: number;
+  itemTop: number;
 }) {
   const router = useRouter();
   const { mutate } = useSWRConfig();
@@ -53,16 +55,35 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
   const handleTogglePin = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const newPinned = !chat.isPinned;
+    const now = new Date().toISOString();
     try {
+      // Optimistic local update — no full reload, no flicker
+      await mutate(
+        (key: any) => typeof key === 'string' && key.startsWith('/api/chats'),
+        (current: any) => {
+          if (!Array.isArray(current)) return current;
+          return current.map((c: any) =>
+            c.id === chat.id
+              ? { ...c, isPinned: newPinned, pinnedAt: newPinned ? now : null }
+              : c
+          );
+        },
+        { revalidate: false }
+      );
+
       const response = await fetch(`/api/chats/${chat.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPinned: !chat.isPinned }),
+        body: JSON.stringify({ isPinned: newPinned }),
       });
       if (!response.ok) throw new Error('Failed to update pin status');
-      toast.success(chat.isPinned ? 'Conversation unpinned' : 'Conversation pinned');
-      mutate('/api/chats');
+      toast.success(newPinned ? 'Conversation pinned' : 'Conversation unpinned');
+      // Revalidate to sync with server
+      await mutate('/api/chats');
     } catch (err: any) {
+      // Rollback optimistic update on failure
+      await mutate('/api/chats');
       toast.error(err.message);
     }
   };
@@ -70,19 +91,41 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
   const handleToggleArchive = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const newArchived = !chat.isArchived;
     try {
+      // Optimistic local update: move between active/archived lists without reload
+      await mutate(
+        (key: any) => typeof key === 'string' && key.startsWith('/api/chats'),
+        (current: any) => {
+          if (!Array.isArray(current)) return current;
+          if (newArchived) {
+            // Remove from active list
+            if (!current.some((c: any) => c.isArchived === true || c.isArchived === false)) return current;
+            return current.filter((c: any) => c.id !== chat.id);
+          } else {
+            // Remove from archived list
+            return current.filter((c: any) => c.id !== chat.id);
+          }
+        },
+        { revalidate: false }
+      );
+
       const response = await fetch(`/api/chats/${chat.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isArchived: !chat.isArchived }),
+        body: JSON.stringify({ isArchived: newArchived }),
       });
       if (!response.ok) throw new Error('Failed to update archive status');
-      toast.success(chat.isArchived ? 'Conversation unarchived' : 'Conversation archived');
-      mutate('/api/chats');
+      toast.success(newArchived ? 'Conversation archived' : 'Conversation unarchived');
+      // Revalidate both caches
+      await mutate('/api/chats');
+      await mutate('/api/chats/archive');
       if (isActive) {
         router.push('/inbox');
       }
     } catch (err: any) {
+      await mutate('/api/chats');
+      await mutate('/api/chats/archive');
       toast.error(err.message);
     }
   };
@@ -97,7 +140,26 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
 
   const handleDeleteConfirm = async () => {
     setShowDeleteDialog(false);
+
+    // 1. Optimistic update: instantly remove from SWR lists
+    console.log("[CHAT DELETE CACHE UPDATE]", { chatId: chat.id });
+    const mutateKeysFilter = (key: any) => typeof key === 'string' && key.startsWith('/api/chats');
+
+    await mutate(
+      mutateKeysFilter,
+      (currentData: any) => {
+        if (!Array.isArray(currentData)) return currentData;
+        return currentData.filter((c: any) => {
+          if (c.id === chat.id) return false;
+          if (c.chat && c.chat.id === chat.id) return false;
+          return true;
+        });
+      },
+      { revalidate: false }
+    );
+
     try {
+      console.log("[CHAT DELETE REQUEST]", { chatIds: [chat.id] });
       const response = await fetch('/api/chats/delete', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -107,25 +169,26 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || 'Failed to delete conversation');
       }
+
+      const result = await response.json();
+      console.log("[CHAT DELETE SUCCESS]", result);
       toast.success('Conversation deleted successfully');
       
-      // Mutate all SWR keys starting with /api/chats to update the UI across components
-      mutate(
-        (key) => typeof key === 'string' && key.startsWith('/api/chats'),
-        undefined,
-        { revalidate: true }
-      );
+      // 2. Final revalidation to sync with the server
+      await mutate(mutateKeysFilter, undefined, { revalidate: true });
 
       if (isActive) {
         router.push('/inbox');
       }
     } catch (err: any) {
       toast.error(err.message);
+      // Restore on failure by triggering a revalidation
+      await mutate(mutateKeysFilter, undefined, { revalidate: true });
     }
   };
 
   return (
-    <div className="absolute left-0 top-0 w-full" style={style}>
+    <div className="absolute left-0 top-0 w-full" style={{ height: itemHeight, transform: `translateY(${itemTop}px)` }}>
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <Link href={href} className="block h-full">
@@ -139,7 +202,7 @@ const VirtualizedChatItem = memo(function VirtualizedChatItem({
           </ContextMenuItem>
           <ContextMenuItem onClick={handleToggleArchive} className="gap-2 cursor-pointer">
             <Archive className="h-4 w-4" />
-            <span>{chat.isArchived ? 'Archive chat' : 'Unarchive chat'}</span>
+            <span>{chat.isArchived ? 'Unarchive chat' : 'Archive chat'}</span>
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onClick={handleDeleteClick} className="gap-2 cursor-pointer text-destructive focus:bg-destructive/10">
@@ -176,7 +239,6 @@ export const VirtualizedChatList = memo(function VirtualizedChatList({
   chats,
   activeChatNumber,
   activeInstanceId,
-  instances,
 }: VirtualizedChatListProps) {
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -184,7 +246,7 @@ export const VirtualizedChatList = memo(function VirtualizedChatList({
     count: chats.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ROW_HEIGHT,
-    overscan: 10,
+    overscan: 5, // reduced from 10 — fewer off-screen items re-rendering
   });
 
   const decodedActive = activeChatNumber ? decodeURIComponent(activeChatNumber) : null;
@@ -197,8 +259,10 @@ export const VirtualizedChatList = memo(function VirtualizedChatList({
       >
         {virtualizer.getVirtualItems().map((virtualRow) => {
           const chat = chats[virtualRow.index];
-          const isGroup = chat.remoteJid.endsWith('@g.us');
-          const chatIdentifier = isGroup ? chat.remoteJid : chat.remoteJid.split('@')[0];
+          const isGroup = chat.remoteJid?.endsWith('@g.us') ?? false;
+          const chatIdentifier = isGroup
+            ? chat.remoteJid
+            : (chat.remoteJid?.split('@')[0] ?? String(chat.id));
           const isActive =
             chatIdentifier === decodedActive &&
             (!activeInstanceId || chat.instanceId === parseInt(activeInstanceId, 10));
@@ -212,10 +276,10 @@ export const VirtualizedChatList = memo(function VirtualizedChatList({
               chat={chat}
               isActive={isActive}
               href={href}
-              style={{
-                height: `${virtualRow.size}px`,
-                transform: `translateY(${virtualRow.start}px)`,
-              }}
+              // Pass primitives so memo comparison works correctly.
+              // A style object literal {} is always a new reference → bypasses memo.
+              itemHeight={virtualRow.size}
+              itemTop={virtualRow.start}
             />
           );
         })}
@@ -223,3 +287,4 @@ export const VirtualizedChatList = memo(function VirtualizedChatList({
     </div>
   );
 });
+

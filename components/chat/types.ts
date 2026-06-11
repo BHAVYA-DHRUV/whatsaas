@@ -22,6 +22,8 @@ export type Message = {
   isAi?: boolean;
   isAutomation?: boolean;
   isInternal?: boolean;
+  isStarred?: boolean;
+  isEdited?: boolean;
   reactions?: Reaction[];
   errorMessage?: string;
   participantName?: string | null;

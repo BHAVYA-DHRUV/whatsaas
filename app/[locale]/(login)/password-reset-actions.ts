@@ -14,7 +14,7 @@ const forgotPasswordSchema = z.object({
 });
 
 export async function requestPasswordReset(
-  prevState: ActionState,
+  _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const result = forgotPasswordSchema.safeParse(Object.fromEntries(formData));
@@ -58,7 +58,7 @@ const resetPasswordSchema = z.object({
 });
 
 export async function resetPassword(
-  prevState: ActionState,
+  _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const result = resetPasswordSchema.safeParse(Object.fromEntries(formData));

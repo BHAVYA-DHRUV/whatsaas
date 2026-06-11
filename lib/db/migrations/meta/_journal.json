@@ -57,6 +57,48 @@
       "when": 1780573604301,
       "tag": "0007_motionless_makkari",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780900000000,
+      "tag": "0008_optimize_indices",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780893378889,
+      "tag": "0009_short_mad_thinker",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780897357032,
+      "tag": "0010_youthful_salo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780916384664,
+      "tag": "0011_nebulous_dark_phoenix",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780922719602,
+      "tag": "0012_sudden_the_anarchist",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780980009360,
+      "tag": "0013_chemical_lady_mastermind",
+      "breakpoints": true
     }
   ]
 }

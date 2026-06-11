@@ -5,6 +5,7 @@ import { chats } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
 import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
+import { isValidChatListUpdatePayload } from '@/lib/realtime/chat-payload';
 
 export async function PATCH(
   request: NextRequest,
@@ -46,6 +47,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
     }
 
+    // Always return remoteJid and instanceId so the realtime payload is complete
     const [updated] = await db
       .update(chats)
       .set(updates)
@@ -54,6 +56,8 @@ export async function PATCH(
         id: chats.id,
         isPinned: chats.isPinned,
         isArchived: chats.isArchived,
+        remoteJid: chats.remoteJid,
+        instanceId: chats.instanceId,
       });
 
     if (!updated) {
@@ -61,11 +65,21 @@ export async function PATCH(
     }
 
     await cacheInvalidateTeam(team.id);
-    await pusherServer.trigger(`team-${team.id}`, 'chat-list-update', {
+
+    // Build a complete payload so the frontend can reactively move the chat
+    // between the main list and the archive list without a full page refresh.
+    const realtimePayload = {
       id: updated.id,
+      remoteJid: updated.remoteJid,
+      instanceId: updated.instanceId,
       isPinned: updated.isPinned,
       isArchived: updated.isArchived,
-    });
+    };
+
+    if (isValidChatListUpdatePayload(realtimePayload, 'PATCH /api/chats/[id]')) {
+      console.log('[SOCKET_EMIT] chat-list-update', 'chat/[id] PATCH', JSON.stringify(realtimePayload));
+      await pusherServer.trigger(`team-${team.id}`, 'chat-list-update', realtimePayload);
+    }
 
     return NextResponse.json(updated);
   } catch (error: unknown) {

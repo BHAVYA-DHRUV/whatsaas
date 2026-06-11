@@ -2,7 +2,7 @@ import 'dotenv/config';
 import postgres from 'postgres';
 
 async function main() {
-  const sql = postgres(process.env.POSTGRES_URL);
+  const sql = postgres(process.env.POSTGRES_URL || '');
   try {
     const schemas = await sql`SELECT schema_name FROM information_schema.schemata;`;
     console.log('Schemas:', schemas.map(s => s.schema_name));
@@ -33,7 +33,7 @@ async function main() {
       }
     }
   } catch (err) {
-    console.error('Error:', err.message);
+    console.error('Error:', err instanceof Error ? err.message : String(err));
   } finally {
     await sql.end();
   }

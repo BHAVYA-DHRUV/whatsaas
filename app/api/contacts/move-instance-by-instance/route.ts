@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'sourceInstanceId and targetInstanceId are required' }, { status: 400 });
     }
 
-    const result = await db.update(chats)
+    await db.update(chats)
       .set({ instanceId: targetInstanceId })
       .where(and(
         eq(chats.teamId, team.id),

@@ -1,12 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { getTeamForUser, getUser } from '@/lib/db/queries';
-import { aiSessions, chats } from '@/lib/db/schema';
+import { aiSessions } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createSystemMessage } from '@/lib/db/system-messages';
 import { pusherServer } from '@/lib/pusher-server';
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const team = await getTeamForUser();
     if (!team) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -43,7 +43,7 @@ async function main() {
     const res = await EvolutionSDK.createInstance(instanceName, evolutionPayload);
     console.log('Recreate result:', JSON.stringify(res, null, 2));
   } catch (error) {
-    console.error('Recreate error:', error.message);
+    console.error('Recreate error:', error instanceof Error ? error.message : String(error));
   }
 }
 

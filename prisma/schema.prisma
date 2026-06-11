@@ -238,6 +238,10 @@ model Chats {
   unreadCount             Int?      @default(0) @map("unread_count")
   lastMessageStatus       String?   @map("last_message_status") @db.VarChar(20)
   lastMessageFromMe       Boolean?  @map("last_message_from_me")
+  isPinned                Boolean   @default(false) @map("is_pinned")
+  isArchived              Boolean   @default(false) @map("is_archived")
+  pinnedAt                DateTime? @map("pinned_at")
+  deletedAt               DateTime? @map("deleted_at")
 
   team               Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
   instance           EvolutionInstance?  @relation(fields: [instanceId], references: [id], onDelete: SetNull)
@@ -291,6 +295,8 @@ model Message {
   participantName   String?   @map("participant_name")
   errorMessage      String?   @map("error_message")
   timestamp         DateTime  @map("timestamp")
+  isStarred         Boolean   @default(false) @map("is_starred")
+  isEdited          Boolean   @default(false) @map("is_edited")
 
   chat             Chats             @relation(fields: [chatId], references: [id], onDelete: Cascade)
   messageReactions MessageReaction[]

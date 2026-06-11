@@ -9,11 +9,37 @@ import { verifyToken } from '@/lib/auth/session';
 const DEFAULT_DB_QUERY_TIMEOUT = Number(process.env.DB_QUERY_TIMEOUT_MS) || 5000;
 
 const queryWithTimeout = <T>(promise: Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT): Promise<T> => {
-  return promise;
+  let timeoutId: NodeJS.Timeout;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Database query timed out after ${ms}ms`));
+    }, ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeoutId);
+  });
 };
 
-async function queryWithRetry<T>(operation: () => Promise<T>, ms = DEFAULT_DB_QUERY_TIMEOUT, retries = 3): Promise<T> {
-  return operation();
+async function queryWithRetry<T>(
+  operation: () => Promise<T>,
+  ms = DEFAULT_DB_QUERY_TIMEOUT,
+  retries = 3
+): Promise<T> {
+  let lastError: any;
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await queryWithTimeout(operation(), ms);
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`[Database Retry] Attempt ${attempt} failed: ${error.message}`);
+      if (attempt < retries) {
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, Math.min(100 * Math.pow(2, attempt), 1000)));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export const getUser = cache(async () => {
@@ -145,7 +171,10 @@ export async function getContactCount(teamId: number) {
   const [result] = await queryWithRetry(() => db
     .select({ count: count() })
     .from(contacts)
-    .where(eq(contacts.teamId, teamId))
+    .where(and(
+      eq(contacts.teamId, teamId),
+      isNull(contacts.deletedAt)
+    ))
   );
   return result.count;
 }

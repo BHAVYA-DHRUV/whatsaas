@@ -4,12 +4,23 @@ import { getTeamChatsForInbox } from '@/lib/services/inbox-service';
 import { listChatsQuerySchema } from '@/lib/validators/inbox';
 import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 import { withRateLimit } from '@/lib/api/with-rate-limit';
+import { ensureIndexes } from '@/lib/db/setup-indexes';
+import { ensureConversationArray } from '@/lib/types/conversation';
+import { logInvalidApiResponse, logInvalidCachePayload } from '@/lib/monitoring/inbox-health';
 
 export const dynamic = 'force-dynamic';
+
+// Browser/CDN caching: private (per-user), stale-while-revalidate=15s
+// This lets the browser serve a cached response immediately while
+// SWR revalidates in the background — eliminates navigation flash.
+const CACHE_HEADERS = {
+  'Cache-Control': 'private, no-cache, stale-while-revalidate=15',
+};
 
 export async function GET(req: NextRequest) {
   return withRateLimit(req, async () => {
     try {
+      await ensureIndexes();
       const permCtx = await getUserPermissionContext();
       if (!permCtx) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,31 +37,35 @@ export async function GET(req: NextRequest) {
 
       const scope = parsed.data.scope ?? 'inbox';
       const cacheKey = CacheKeys.teamChats(permCtx.teamId, scope);
-      const cached = await cacheGet<unknown[]>(cacheKey);
+      const cached = await cacheGet<unknown>(cacheKey);
       if (cached) {
-        return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
+        const validated = ensureConversationArray(cached);
+        if (validated.length === 0 && cached !== null && typeof cached === 'object') {
+          logInvalidCachePayload(cacheKey, typeof cached, cached, { teamId: permCtx.teamId });
+        }
+        return NextResponse.json(validated, {
+          headers: { ...CACHE_HEADERS, 'X-Cache': 'HIT' },
+        });
       }
 
       const formattedChats = await getTeamChatsForInbox(permCtx, {
         scope: parsed.data.scope,
       });
 
+      if (!Array.isArray(formattedChats)) {
+        logInvalidApiResponse('/api/chats', typeof formattedChats, formattedChats, { teamId: permCtx.teamId });
+        return NextResponse.json([], { status: 200, headers: CACHE_HEADERS });
+      }
+
       await cacheSet(cacheKey, formattedChats, CacheTTL.chats);
 
-      return NextResponse.json(formattedChats, { headers: { 'X-Cache': 'MISS' } });
+      return NextResponse.json(formattedChats, {
+        headers: { ...CACHE_HEADERS, 'X-Cache': 'MISS' },
+      });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error fetching chats:', message);
-      
-      // Graceful error handling: return 200 OK with empty array when instance is transitioning
-      // This prevents the inbox from throwing 500 errors during connection state changes
-      return NextResponse.json(
-        { 
-          chats: [], 
-          message: 'Synchronizing device...' 
-        }, 
-        { status: 200 }
-      );
+      return NextResponse.json([], { status: 200 });
     }
   });
 }

@@ -7,11 +7,8 @@ import {
   integer,
   unique,
   boolean,
-  foreignKey, 
   index,
   decimal,
-  PgColumn,
-  PgTableWithColumns,
   jsonb,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
@@ -107,7 +104,6 @@ export const teamMembers = pgTable(
   (table) => ({
     teamIdIdx: index('team_members_team_id_idx').on(table.teamId),
     userIdIdx: index('team_members_user_id_idx').on(table.userId),
-    idxTeamMembersUserId: index('idx_team_members_user_id').on(table.userId),
   })
 );
 
@@ -210,7 +206,17 @@ export const chats = pgTable(
     remoteJidIdx: index('chats_remote_jid_idx').on(self.remoteJid),
     isPinnedIdx: index('chats_is_pinned_idx').on(self.isPinned),
     isArchivedIdx: index('chats_is_archived_idx').on(self.isArchived),
-    idxConversationsWorkspaceId: index('idx_conversations_workspace_id').on(self.teamId),
+    unreadCountIdx: index('chats_unread_count_idx').on(self.unreadCount),
+    lastMessageTimestampIdx: index('chats_last_message_timestamp_idx').on(self.lastMessageTimestamp),
+    // Search optimization indexes
+    nameGinIdx: index('chats_name_gin_idx').using('gin', self.name),
+    pushNameGinIdx: index('chats_push_name_gin_idx').using('gin', self.pushName),
+    lastMessageTextGinIdx: index('chats_last_message_text_gin_idx').using('gin', self.lastMessageText),
+    remoteJidGinIdx: index('chats_remote_jid_gin_idx').using('gin', self.remoteJid),
+    // Composite index for team + archived + pinned for filtered searches
+    teamArchivedPinnedIdx: index('chats_team_archived_pinned_idx').on(self.teamId, self.isArchived, self.isPinned),
+    // Composite index for team + unread for unread searches
+    teamUnreadIdx: index('chats_team_unread_idx').on(self.teamId, self.unreadCount),
   })
 );
 
@@ -218,22 +224,22 @@ export const messages = pgTable('messages', {
   id: text('id').primaryKey(),
   chatId: integer('chat_id')
     .notNull()
-    .references(() => chats.id, { onDelete: 'cascade' }), 
+    .references(() => chats.id, { onDelete: 'cascade' }),
   fromMe: boolean('from_me').notNull(),
   messageType: text('message_type'),
-  text: text('text'), 
+  text: text('text'),
   mediaUrl: text('media_url'),
   mediaMimetype: text('media_mimetype'),
   mediaCaption: text('media_caption'),
-  mediaFileLength: text('media_file_length'), 
+  mediaFileLength: text('media_file_length'),
   mediaSeconds: integer('media_seconds'),
   mediaIsPtt: boolean('media_is_ptt'),
   contactName: text('contact_name'),
-  contactVcard: text('contact_vcard'), 
+  contactVcard: text('contact_vcard'),
   locationLatitude: decimal('location_latitude', { precision: 10, scale: 7 }),
-  locationLongitude: decimal('location_longitude', { precision: 10, scale: 7 }), 
+  locationLongitude: decimal('location_longitude', { precision: 10, scale: 7 }),
   locationName: text('location_name'),
-  locationAddress: text('location_address'), 
+  locationAddress: text('location_address'),
   status: varchar('status', { length: 20 }).default('sent'),
   isAi: boolean('is_ai').default(false),
   isAutomation: boolean('is_automation').default(false),
@@ -246,15 +252,24 @@ export const messages = pgTable('messages', {
   timestamp: timestamp('timestamp', { withTimezone: true }).notNull(),
   instanceId: integer('instance_id').references(() => evolutionInstances.id, { onDelete: 'set null' }),
   remoteJid: text('remote_jid'),
+  isStarred: boolean('is_starred').notNull().default(false),
+  isEdited: boolean('is_edited').notNull().default(false),
+  deletedAt: timestamp('deleted_at'),
 }, (table) => ({
+  messageIdUnique: unique('messages_message_id_unique').on(table.id),
   chatTimestampIdx: index('messages_chat_id_timestamp_idx').on(table.chatId, table.timestamp),
   chatIdIdx: index('messages_chat_id_idx').on(table.chatId),
   timestampIdx: index('messages_timestamp_idx').on(table.timestamp),
   statusIdx: index('messages_status_idx').on(table.status),
-  idxMessagesChatId: index('idx_messages_chat_id').on(table.chatId),
-  idxMessagesCreatedAt: index('idx_messages_created_at').on(table.timestamp),
   instanceIdIdx: index('messages_instance_id_idx').on(table.instanceId),
   remoteJidIdx: index('messages_remote_jid_idx').on(table.remoteJid),
+  isStarredIdx: index('messages_is_starred_idx').on(table.isStarred),
+  deletedAtIdx: index('messages_deleted_at_idx').on(table.deletedAt),
+  // Search optimization indexes
+  textGinIdx: index('messages_text_gin_idx').using('gin', table.text),
+  mediaCaptionGinIdx: index('messages_media_caption_gin_idx').using('gin', table.mediaCaption),
+  // Composite index for starred messages search
+  chatStarredIdx: index('messages_chat_starred_idx').on(table.chatId, table.isStarred),
 }));
 
 
@@ -355,13 +370,19 @@ export const contacts = pgTable('contacts', {
   profilePicture: text('profile_picture'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at'),
 }, (table) => ({
   teamIdIndex: index('contact_team_id_idx').on(table.teamId),
   chatIdIndex: index('contact_chat_id_idx').on(table.chatId),
   assignedUserIdIdx: index('contact_assigned_user_id_idx').on(table.assignedUserId),
   funnelStageIdIdx: index('contact_funnel_stage_id_idx').on(table.funnelStageId),
-  idxContactsWorkspaceId: index('idx_contacts_workspace_id').on(table.teamId),
   phoneIndex: index('contacts_phone_idx').on(table.phone),
+  deletedAtIdx: index('contacts_deleted_at_idx').on(table.deletedAt),
+  // Search optimization indexes
+  nameGinIdx: index('contacts_name_gin_idx').using('gin', table.name),
+  phoneGinIdx: index('contacts_phone_gin_idx').using('gin', table.phone),
+  pushNameGinIdx: index('contacts_push_name_gin_idx').using('gin', table.pushName),
+  notesGinIdx: index('contacts_notes_gin_idx').using('gin', table.notes),
 }));
 
 export const contactTags = pgTable('contact_tags', {
@@ -846,10 +867,7 @@ export const chatsRelations = relations(chats, ({ one, many }) => ({
     references: [teams.id],
   }),
   messages: many(messages),
-  contact: one(contacts, {
-    fields: [chats.id],
-    references: [contacts.chatId],
-  }),
+  contact: one(contacts),
   instance: one(evolutionInstances, {
     fields: [chats.instanceId],
     references: [evolutionInstances.id],

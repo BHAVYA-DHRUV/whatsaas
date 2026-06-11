@@ -166,7 +166,7 @@
 
 import { useState, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
-import { LogOut, Settings, LayoutDashboard, Menu, X, User2 } from 'lucide-react';
+import { LogOut, Settings, LayoutDashboard, Menu, X } from 'lucide-react';
 import { ConnectionStatus } from '@/components/connection-status';
 import {
   DropdownMenu,
@@ -181,6 +181,7 @@ import { User } from '@/lib/db/schema';
 import useSWR, { mutate } from 'swr';
 import { Sidebar } from '@/components/interface/Sidebar';
 import { EnterpriseTopbar } from '@/components/layout/enterprise-topbar';
+import { CommandMenu } from '@/components/layout/command-menu';
 import Logo from '@/components/interface/Logo';
 import { ThemeSwitcher } from '@/components/theme-switcher';
 // Use i18n-aware Link and router from @/i18n/routing
@@ -367,16 +368,15 @@ export function DashboardShell({ children, path }: DashboardShellProps) {
     return <>{children}</>;
   }
 
-  const showTopbar = !path.includes('/inbox') && !path.includes('/dashboard/chat');
-
   return (
     <div className="flex h-screen overflow-hidden bg-muted">
       <Sidebar />
       <div className="relative flex flex-col flex-1 h-full overflow-hidden">
         <ConnectionStatus />
-        {showTopbar && <EnterpriseTopbar />}
+        <EnterpriseTopbar />
         <main className="flex flex-col flex-1 min-h-0 overflow-hidden">{children}</main>
       </div>
+      <CommandMenu />
     </div>
   );
 }

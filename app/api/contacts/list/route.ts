@@ -3,7 +3,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { checkRoutePermission } from '@/lib/auth/permissions-guard';
 import { contacts } from '@/lib/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and, isNull } from 'drizzle-orm';
 import { cacheGet, cacheSet, CacheKeys, CacheTTL } from '@/lib/cache/redis-cache';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export async function GET() {
     }
 
     const teamContacts = await db.query.contacts.findMany({
-      where: eq(contacts.teamId, team.id),
+      where: and(eq(contacts.teamId, team.id), isNull(contacts.deletedAt)),
       orderBy: [desc(contacts.updatedAt)],
       columns: {
         id: true,

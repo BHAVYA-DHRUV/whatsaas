@@ -10,14 +10,14 @@ async function main() {
     const state1 = await EvolutionSDK.getConnectionState('team-3-sales-head');
     console.log('State for team-3-sales-head:', state1);
   } catch (e) {
-    console.error('Failed to get state for team-3-sales-head:', e.message);
+    console.error('Failed to get state for team-3-sales-head:', e instanceof Error ? e.message : String(e));
   }
 
   try {
     const state2 = await EvolutionSDK.getConnectionState('team-3-team-lead');
     console.log('State for team-3-team-lead:', state2);
   } catch (e) {
-    console.error('Failed to get state for team-3-team-lead:', e.message);
+    console.error('Failed to get state for team-3-team-lead:', e instanceof Error ? e.message : String(e));
   }
 }
 

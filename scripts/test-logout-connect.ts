@@ -13,7 +13,7 @@ async function main() {
       const logoutResult = await EvolutionSDK.logoutInstance(instanceName);
       console.log('Logout response:', logoutResult);
     } catch (e) {
-      console.log('Logout failed:', e.message);
+      console.log('Logout failed:', e instanceof Error ? e.message : String(e));
     }
     
     console.log('Waiting 3 seconds...');
@@ -23,7 +23,7 @@ async function main() {
     const qrResult = await EvolutionSDK.fetchQR(instanceName);
     console.log('QR Code response:', JSON.stringify(qrResult, null, 2));
   } catch (err) {
-    console.error('Error during logout/connect:', err.message);
+    console.error('Error during logout/connect:', err instanceof Error ? err.message : String(err));
   }
 }
 

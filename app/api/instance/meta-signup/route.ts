@@ -3,7 +3,6 @@ import { getTeamForUser, getUser } from '@/lib/db/queries';
 import { db } from '@/lib/db/drizzle';
 import { evolutionInstances, ActivityType } from '@/lib/db/schema';
 import { logActivity } from '@/lib/db/activity';
-import { enforceLimit } from '@/lib/limits';
 import { isPluginInstalled } from '@/lib/plugins/registry';
 import { isChannelActive, getMetaCloudConfig } from '@/lib/whatsapp/config';
 

@@ -238,7 +238,6 @@ export async function processAIMessage(
   let loopCount = 0;
   const MAX_LOOPS = 5;
   const _aiLogBase = { teamId, chatId };
-  const _aiStart = Date.now();
 
   logAIInteraction({ ..._aiLogBase, eventType: 'ai_request', input: { message: finalInput?.substring(0, 500) }, metadata: { model: config.model, provider: config.provider, historyLength: history.length } });
 

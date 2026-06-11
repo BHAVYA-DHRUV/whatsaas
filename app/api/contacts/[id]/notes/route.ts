@@ -4,6 +4,7 @@ import { db } from '@/lib/db/drizzle';
 import { getTeamForUser } from '@/lib/db/queries';
 import { contacts } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -37,6 +38,8 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ id:
     if (!updatedContact) {
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(updatedContact);
 

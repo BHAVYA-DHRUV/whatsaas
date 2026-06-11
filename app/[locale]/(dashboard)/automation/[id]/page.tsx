@@ -1,4 +1,3 @@
-import React from 'react';
 import { notFound, redirect } from 'next/navigation';
 import FlowBuilder from '@/components/automation/FlowBuilder';
 import { getAutomation } from '../actions';

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/drizzle';
 import { chats, messages, evolutionInstances, webhookEvents, messageReactions, contacts } from '@/lib/db/schema';
-import { eq, and, sql, desc } from 'drizzle-orm';
+import { eq, and, sql, desc, isNull } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,32 +12,34 @@ import { scheduleAIProcessing } from '@/lib/plugins/ai-chat/service';
 import { sendPushNotification, sendPushToTeam } from '@/lib/push-notifications';
 import { verifyEvolutionWebhook } from '@/lib/webhook/evolution-auth';
 import { triggerSync } from '@/src/lib/evolution/sync';
-import { cacheDel, CacheKeys } from '@/lib/cache/redis-cache';
+import { cacheDel, CacheKeys, cacheInvalidateTeam } from '@/lib/cache/redis-cache';
+import { logger } from '@/lib/logger';
+
 
 async function downloadProfilePic(url: string): Promise<string | null> {
-    if (!url || url.startsWith('/uploads/')) return null;
-    try {
-        const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        if (!res.ok) return null;
+  if (!url || url.startsWith('/uploads/')) return url;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
 
-        const contentType = res.headers.get('content-type') || '';
-        if (!contentType.startsWith('image/')) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.startsWith('image/')) return null;
 
-        const contentLength = res.headers.get('content-length');
-        if (contentLength && parseInt(contentLength, 10) > 5 * 1024 * 1024) return null;
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 5 * 1024 * 1024) return null;
 
-        const buffer = Buffer.from(await res.arrayBuffer());
-        if (buffer.length < 100) return null; 
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.length < 100) return null;
 
-        const ext = contentType.includes('png') ? 'png' : 'jpg';
-        const filename = `${Date.now()}-${uuidv4()}.${ext}`;
-        const dirPath = path.join(process.cwd(), 'public', 'uploads', 'avatar');
-        await fs.mkdir(dirPath, { recursive: true });
-        await fs.writeFile(path.join(dirPath, filename), buffer);
-        return `/uploads/avatar/${filename}`;
-    } catch {
-        return null;
-    }
+    const ext = contentType.includes('png') ? 'png' : 'jpg';
+    const filename = `${Date.now()}-${uuidv4()}.${ext}`;
+    const dirPath = path.join(process.cwd(), 'public', 'uploads', 'avatar');
+    await fs.mkdir(dirPath, { recursive: true });
+    await fs.writeFile(path.join(dirPath, filename), buffer);
+    return `/uploads/avatar/${filename}`;
+  } catch {
+    return null;
+  }
 }
 
 async function safePusherTrigger(channel: string, event: string, data: any): Promise<void> {
@@ -218,14 +220,14 @@ function getStatusWeight(status: string | null): number {
 }
 
 export async function POST(request: Request) {
-    console.log('[WEBHOOK DEBUG] Evolution webhook received');
+    logger.debug('[WEBHOOK] Evolution webhook received');
     try {
         if (!(await verifyEvolutionWebhook(request))) {
-            console.log('[WEBHOOK DEBUG] Webhook auth failed');
+            logger.warn('[WEBHOOK] Webhook auth failed');
             // Silent fail - webhook auth failures are expected in development without tokens
             return NextResponse.json({ received_but_ignored: true, reason: 'invalid_credentials' }, { status: 200 });
         }
-        console.log('[WEBHOOK DEBUG] Webhook auth successful');
+        logger.debug('[WEBHOOK] Webhook auth successful');
 
     // Webhooks are already verified. Rate limiting verified webhook events from our own container can cause connections to fail.
     // const limited = await checkRateLimit(`webhook:${getClientIp(request)}`, RATE_LIMITS.webhook);
@@ -241,7 +243,6 @@ export async function POST(request: Request) {
 
     const instanceName = body?.instance;
     console.log('[WEBHOOK DEBUG] Instance name from webhook:', instanceName);
-    
     if (!instanceName) {
       console.log('[WEBHOOK DEBUG] No instance name in webhook body');
       return NextResponse.json({ error: 'Instance name missing' }, { status: 400 });
@@ -277,6 +278,19 @@ export async function POST(request: Request) {
       }
       
       const remoteJid = getBestRemoteJid(messageData.key);
+      const messageId = messageData.key.id;
+
+      if (messageId) {
+          const existingMsg = await db.query.messages.findFirst({
+              where: eq(messages.id, messageId),
+              columns: { id: true }
+          });
+          if (existingMsg) {
+              console.log(`[Webhook Deduplication] Message ${messageId} already exists in DB. Skipping messages.upsert.`);
+              await logWebhookEvent(teamId, instanceName, 'messages.upsert', messageId, remoteJid, 'duplicate');
+              return NextResponse.json({ received: true, duplicate: true });
+          }
+      }
 
       if (
           remoteJid === 'status@broadcast' ||
@@ -373,6 +387,7 @@ export async function POST(request: Request) {
       let newMessageData: any = null;
       let chatUpdateData: any = null;
       let rawMessagePreview: string = '';
+      let blockSocketEvents = false;
 
       const messagePayload = messageData.message;
 
@@ -470,13 +485,45 @@ export async function POST(request: Request) {
 
         const customerInteractionUpdate = !isFromMe ? messageTimestamp : undefined;
 
+        // Check for existing contact to get proper name priority
+        const existingChat = await tx.query.chats.findFirst({
+            where: and(
+                eq(chats.teamId, teamId),
+                eq(chats.remoteJid, remoteJid),
+                eq(chats.instanceId, instanceId)
+            ),
+            columns: { id: true, name: true, deletedAt: true }
+        });
+
+        let existingContactName: string | null = null;
+        if (existingChat) {
+            const contact = await tx.query.contacts.findFirst({
+                where: and(
+                    eq(contacts.chatId, existingChat.id),
+                    sql`${contacts.deletedAt} IS NULL`
+                ),
+                columns: { name: true }
+            });
+            existingContactName = contact?.name || null;
+        }
+
         let initialChatName = remoteJid.split('@')[0];
-        if (!isGroup && !isFromMe && messageData.pushName) {
+        // Name priority: Contact name > Chat name > Push name > Phone number
+        if (existingContactName && existingContactName !== remoteJid.split('@')[0]) {
+            initialChatName = existingContactName;
+        } else if (!isGroup && !isFromMe && messageData.pushName) {
             initialChatName = messageData.pushName;
         }
         if (isGroup && groupName) {
             initialChatName = groupName;
         }
+
+        // Determine resurrection behavior:
+        // Only set deletedAt to null if there is no existing deletedAt, OR the incoming message is newer
+        const isDeleted = existingChat && existingChat.deletedAt;
+        const messageTime = new Date(messageTimestamp).getTime();
+        const deletedTime = isDeleted ? new Date(existingChat.deletedAt!).getTime() : 0;
+        const shouldResurrect = !isDeleted || (messageTime > deletedTime);
 
         const updateData: any = {
             lastMessageText: messagePreview,
@@ -484,10 +531,27 @@ export async function POST(request: Request) {
             unreadCount: sql`${chats.unreadCount} + ${incrementValue}`,
             lastMessageFromMe: isFromMe,
             lastMessageStatus: isFromMe ? (isGroup ? 'delivered' : 'sent') : null,
-            deletedAt: null,
         };
 
-        if (!isGroup && !isFromMe && messageData.pushName) {
+        if (shouldResurrect) {
+            updateData.deletedAt = null;
+        } else {
+            console.log("[CHAT DELETE SYNC SKIPPED]", {
+                chatId: existingChat?.id,
+                remoteJid,
+                messageTimestamp,
+                deletedAt: existingChat?.deletedAt
+            });
+            updateData.deletedAt = existingChat.deletedAt;
+        }
+
+        if (process.env.UNARCHIVE_ON_NEW_MESSAGE !== 'false') {
+            updateData.isArchived = false;
+        }
+
+        // Only update name if there's no existing contact with a saved name
+        // Contact name has priority over pushName
+        if (!isGroup && !isFromMe && messageData.pushName && !existingContactName) {
             updateData.name = messageData.pushName;
             updateData.pushName = messageData.pushName;
         }
@@ -527,10 +591,12 @@ export async function POST(request: Request) {
             instanceId: chats.instanceId,
             lastCustomerInteraction: chats.lastCustomerInteraction,
             name: chats.name,
-            profilePicUrl: chats.profilePicUrl
+            profilePicUrl: chats.profilePicUrl,
+            deletedAt: chats.deletedAt
           });
 
         chatIdForAutomation = chat.id;
+        blockSocketEvents = !!chat.deletedAt;
 
         let mainTextContent = messagePayload?.conversation || messagePayload?.extendedTextMessage?.text || null;
         
@@ -607,12 +673,22 @@ export async function POST(request: Request) {
         };
       });
 
-      if (newMessageData) {
-          await safePusherTrigger(pusherChannel, 'new-message', newMessageData);
-      }
+      await cacheInvalidateTeam(teamId);
 
-      if (chatUpdateData) {
-          await safePusherTrigger(pusherChannel, 'chat-list-update', chatUpdateData);
+      if (blockSocketEvents) {
+          console.log("[CHAT DELETE SOCKET EVENT BLOCKED]", {
+              event: "messages.upsert",
+              chatId: chatIdForAutomation,
+              remoteJid
+          });
+      } else {
+          if (newMessageData) {
+              await safePusherTrigger(pusherChannel, 'new-message', newMessageData);
+          }
+
+          if (chatUpdateData) {
+              await safePusherTrigger(pusherChannel, 'chat-list-update', chatUpdateData);
+          }
       }
 
       if (newMessageData) {
@@ -630,7 +706,7 @@ export async function POST(request: Request) {
             chatId: chatIdForAutomation,
             jid: remoteJid,
             name: chatName,
-            instanceId: String(instanceId),
+            instanceId: instanceId,
           };
 
           
@@ -711,9 +787,25 @@ export async function POST(request: Request) {
           else if (statusValue === 'READ' || statusValue === 'PLAYED' || statusValue === '4' || statusValue === '5') dbStatus = 'read';
 
           if (dbStatus) {
-            const pusherEvents: { event: string; data: any }[] = [];
+             const currentMessage = await db.query.messages.findFirst({
+                where: and(
+                   eq(messages.id, messageKeyId),
+                   eq(messages.fromMe, true)
+                ),
+                columns: { status: true }
+             });
 
-            await db.transaction(async (tx) => {
+             if (currentMessage) {
+                const currentWeight = getStatusWeight(currentMessage.status);
+                const newWeight = getStatusWeight(dbStatus);
+                if (newWeight <= currentWeight) {
+                   continue;
+                }
+             }
+
+             const pusherEvents: { event: string; data: any }[] = [];
+
+             await db.transaction(async (tx) => {
                 const currentMessage = await tx.query.messages.findFirst({
                    where: and(
                       eq(messages.id, messageKeyId),
@@ -743,7 +835,7 @@ export async function POST(request: Request) {
 
                 const chat = await tx.query.chats.findFirst({
                     where: eq(chats.id, currentMessage.chatId),
-                    columns: { id: true, lastMessageStatus: true, remoteJid: true }
+                    columns: { id: true, lastMessageStatus: true, remoteJid: true, deletedAt: true }
                 });
 
                 if (!chat) return;
@@ -769,7 +861,7 @@ export async function POST(request: Request) {
                     if (newWeight > chatCurrentWeight) {
                         const updatedChats = await tx.update(chats)
                             .set({ lastMessageStatus: dbStatus! })
-                            .where(eq(chats.id, chat.id))
+                            .where(and(eq(chats.id, chat.id), isNull(chats.deletedAt)))
                             .returning({
                                 id: chats.id,
                                 lastMessageStatus: chats.lastMessageStatus,
@@ -787,10 +879,18 @@ export async function POST(request: Request) {
                                     instanceId: updatedChats[0].instanceId
                                 }
                             });
+                        } else if (chat.deletedAt) {
+                            console.log("[CHAT DELETE SOCKET EVENT BLOCKED]", {
+                                event: "messages.update",
+                                chatId: chat.id,
+                                remoteJid: chat.remoteJid
+                            });
                         }
                     }
                 }
             });
+
+            await cacheInvalidateTeam(teamId);
 
             for (const evt of pusherEvents) {
                 await safePusherTrigger(pusherChannel, evt.event, evt.data);
@@ -821,19 +921,38 @@ export async function POST(request: Request) {
                     .where(and(
                         eq(chats.remoteJid, remoteJid),
                         eq(chats.teamId, teamId),
-                        eq(chats.instanceId, instanceId)
+                        eq(chats.instanceId, instanceId),
+                        isNull(chats.deletedAt)
                     ))
                     .returning({ id: chats.id });
 
                 if (updatedChats.length > 0) {
                     await safePusherTrigger(pusherChannel, 'chat-list-update', {
+                        id: updatedChats[0].id,
                         remoteJid: remoteJid,
                         instanceId: instanceId,
                         profilePicUrl: newPicUrl
                     });
+                } else {
+                    const chatCheck = await db.query.chats.findFirst({
+                        where: and(
+                            eq(chats.remoteJid, remoteJid),
+                            eq(chats.teamId, teamId),
+                            eq(chats.instanceId, instanceId)
+                        ),
+                        columns: { id: true, deletedAt: true }
+                    });
+                    if (chatCheck && chatCheck.deletedAt) {
+                        console.log("[CHAT DELETE SOCKET EVENT BLOCKED]", {
+                            event: "contacts.update",
+                            chatId: chatCheck.id,
+                            remoteJid
+                        });
+                    }
                 }
             }
         }
+        await cacheInvalidateTeam(teamId);
     } else if (body.event === 'chats.update') {
         const chatsData = Array.isArray(body.data) ? body.data : [body.data];
         for (const chatData of chatsData) {
@@ -851,19 +970,38 @@ export async function POST(request: Request) {
                     .where(and(
                         eq(chats.remoteJid, remoteJid),
                         eq(chats.teamId, teamId),
-                        eq(chats.instanceId, instanceId)
+                        eq(chats.instanceId, instanceId),
+                        isNull(chats.deletedAt)
                     ))
                     .returning({ id: chats.id });
 
                  if (updatedChats.length > 0) {
                     await safePusherTrigger(pusherChannel, 'chat-list-update', {
+                        id: updatedChats[0].id,
                         remoteJid: remoteJid,
                         instanceId: instanceId,
                         profilePicUrl: newPicUrl
                     });
+                 } else {
+                    const chatCheck = await db.query.chats.findFirst({
+                        where: and(
+                            eq(chats.remoteJid, remoteJid),
+                            eq(chats.teamId, teamId),
+                            eq(chats.instanceId, instanceId)
+                        ),
+                        columns: { id: true, deletedAt: true }
+                    });
+                    if (chatCheck && chatCheck.deletedAt) {
+                        console.log("[CHAT DELETE SOCKET EVENT BLOCKED]", {
+                            event: "chats.update",
+                            chatId: chatCheck.id,
+                            remoteJid
+                        });
+                    }
                  }
              }
         }
+        await cacheInvalidateTeam(teamId);
 
     } else if (
       (body.event === 'qrcode.updated' || body.event === 'qr.updated') &&
@@ -962,6 +1100,7 @@ export async function POST(request: Request) {
           console.log('[WEBHOOK DEBUG] Connection is open! Triggering background sync runner...');
           void triggerSync(teamId, instanceId, instanceName, instance.accessToken || '');
         }
+        await cacheInvalidateTeam(teamId);
       }
     }
 

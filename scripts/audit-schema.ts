@@ -4,7 +4,7 @@
  */
 import 'dotenv/config';
 import postgres from 'postgres';
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
 const url = process.env.POSTGRES_URL || process.env.DATABASE_URL;

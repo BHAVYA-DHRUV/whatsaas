@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { logActivity } from '@/lib/db/activity';
 import { createSystemMessage } from '@/lib/db/system-messages';
 import { pusherServer } from '@/lib/pusher-server';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 export async function PUT(
   request: NextRequest, 
@@ -64,6 +65,8 @@ export async function PUT(
     await pusherServer.trigger(`team-${team.id}`, 'contact-update', {
       chatId: updatedContact.chatId,
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(updatedContact);
   } catch (error: any) {

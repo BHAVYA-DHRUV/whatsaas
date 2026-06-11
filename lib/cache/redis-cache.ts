@@ -18,7 +18,7 @@ export const CacheKeys = {
 } as const;
 
 export const CacheTTL = {
-  chats: 12,
+  chats: 60,      // Invalidated by webhook on new messages — safe to cache longer
   dashboard: 30,
   unread: 8,
   contacts: 60,

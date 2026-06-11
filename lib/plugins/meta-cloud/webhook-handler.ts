@@ -2,8 +2,9 @@ import 'server-only';
 
 import { db } from '@/lib/db/drizzle';
 import { chats, contacts, evolutionInstances, messages } from '@/lib/db/schema';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { pusherServer } from '@/lib/pusher-server';
+import { isValidChatListUpdatePayload } from '@/lib/realtime/chat-payload';
 
 type MetaEntry = {
   id: string;
@@ -99,13 +100,34 @@ export async function processMetaWebhook(entries: MetaEntry[]) {
             chatId: chat.id,
             messageId: msg.id,
           });
-          await pusherServer.trigger(`team-${instance.teamId}`, 'chat-list-update', {});
+
+          // Build a complete payload — never emit empty {} which crashes the frontend
+          const chatListPayload = {
+            id: chat.id,
+            remoteJid,
+            instanceId: instance.id,
+            name: chat.name ?? contactName ?? remoteJid,
+            pushName: chat.pushName ?? contactName ?? null,
+            lastMessageText: msg.text.body,
+            lastMessageTimestamp: timestamp.toISOString(),
+            lastMessageFromMe: false,
+            unreadCount: (chat.unreadCount ?? 0) + 1,
+          };
+
+          if (isValidChatListUpdatePayload(chatListPayload, 'meta-cloud/webhook-handler')) {
+            console.log('[SOCKET_EMIT] chat-list-update', 'meta-cloud webhook', JSON.stringify(chatListPayload));
+            await pusherServer.trigger(`team-${instance.teamId}`, 'chat-list-update', chatListPayload);
+          }
         } catch {
           /* non-fatal */
         }
 
         const existingContact = await db.query.contacts.findFirst({
-          where: and(eq(contacts.teamId, instance.teamId), eq(contacts.chatId, chat.id)),
+          where: and(
+            eq(contacts.teamId, instance.teamId),
+            eq(contacts.chatId, chat.id),
+            isNull(contacts.deletedAt)
+          ),
         });
         if (!existingContact) {
           await db.insert(contacts).values({
@@ -113,6 +135,11 @@ export async function processMetaWebhook(entries: MetaEntry[]) {
             chatId: chat.id,
             name: contactName || msg.from,
           });
+        } else if (contactName && existingContact.name === msg.from) {
+          // Only update if the existing name is just the phone number and we have a real name
+          await db.update(contacts)
+            .set({ name: contactName, updatedAt: new Date() })
+            .where(eq(contacts.id, existingContact.id));
         }
       }
     }

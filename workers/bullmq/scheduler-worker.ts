@@ -13,7 +13,7 @@ async function tick() {
   return { ok: true, at: new Date().toISOString() };
 }
 
-const worker = new Worker(QUEUE_NAMES.scheduler, async () => tick(), {
+new Worker(QUEUE_NAMES.scheduler, async () => tick(), {
   connection: getBullConnection(),
 });
 

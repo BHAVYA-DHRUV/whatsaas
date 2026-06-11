@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
@@ -16,7 +16,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { toast } from 'sonner';
-import { Trash2, LogOut, QrCode, Plus, Smartphone, Settings as SettingsIcon, MoreVertical, Info, RefreshCw, Signal, Globe, Zap, Loader2, Download, Check, Users, MessageSquare, CheckCircle2, ExternalLink } from 'lucide-react';
+import { Trash2, LogOut, QrCode, Plus, Smartphone, Info, RefreshCw, Signal, Globe, Zap, Loader2, Download, Users, CheckCircle2 } from 'lucide-react';
 import { getTeamChannel } from '@/lib/pusher-client';
 import useSWR from 'swr';
 import { useTranslations } from 'next-intl';
@@ -61,7 +61,7 @@ function ConnectInstanceForm({ onSuccess, onCancel }: { onSuccess: () => void; o
   const [metaPhoneNumberId, setMetaPhoneNumberId] = useState("");
 
   const [rejectCalls, setRejectCalls] = useState(false);
-  const [ignoreGroups, setIgnoreGroups] = useState(true);
+  const [ignoreGroups] = useState(true);
   const [alwaysOnline, setAlwaysOnline] = useState(true);
   const [readMessages, setReadMessages] = useState(false);
   const [readStatus, setReadStatus] = useState(false);

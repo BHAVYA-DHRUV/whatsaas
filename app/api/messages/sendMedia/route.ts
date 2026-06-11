@@ -9,32 +9,17 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Buffer } from 'buffer';
 import { v4 as uuidv4 } from 'uuid';
+import { cacheInvalidateTeam } from '@/lib/cache/redis-cache';
 
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || "http://localhost:8080";
 
-function getExtensionFromMimetype(mimetype: string | null): string | null {
-    if (!mimetype) return null;
-    const mimeMap: { [key: string]: string } = {
-        'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
-        'video/mp4': 'mp4', 'video/3gpp': '3gp',
-        'application/pdf': 'pdf', 'text/plain': 'txt',
-        'application/msword': 'doc',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-        'application/vnd.ms-excel': 'xls',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-        'application/vnd.ms-powerpoint': 'ppt',
-         'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-        'text/vcard': 'vcf',
-    };
-    if (mimeMap[mimetype]) return mimeMap[mimetype];
-    const subtype = mimetype.split('/')[1]?.split(';')[0];
-    return subtype || null;
-}
 
-function getMediaType(mimeType: string): { type: 'image' | 'video' | 'document', subDir: string, preview: string, msgType: Message['messageType'] } {
-    if (mimeType.startsWith('image/')) return { type: 'image', subDir: 'image', preview: '📷 Imagem', msgType: 'imageMessage' };
-    if (mimeType.startsWith('video/')) return { type: 'video', subDir: 'video', preview: '📹 Vídeo', msgType: 'videoMessage' };
-    return { type: 'document', subDir: 'document', preview: '📄 Documento', msgType: 'documentMessage' };
+function getMediaType(mimeType: string): { type: 'image' | 'video' | 'document' | 'audio', subDir: string, preview: string, msgType: Message['messageType'] } {
+    if (mimeType === 'image/webp') return { type: 'image', subDir: 'sticker', preview: '💟 Sticker', msgType: 'stickerMessage' };
+    if (mimeType.startsWith('image/')) return { type: 'image', subDir: 'image', preview: '📷 Image', msgType: 'imageMessage' };
+    if (mimeType.startsWith('video/')) return { type: 'video', subDir: 'video', preview: '📹 Video', msgType: 'videoMessage' };
+    if (mimeType.startsWith('audio/')) return { type: 'audio', subDir: 'audio', preview: '🔊 Audio', msgType: 'audioMessage' };
+    return { type: 'document', subDir: 'document', preview: '📄 Document', msgType: 'documentMessage' };
 }
 
 export async function POST(request: NextRequest) {
@@ -178,36 +163,51 @@ export async function POST(request: NextRequest) {
         };
     }
 
-    const evolutionResponse = await fetch(
-      `${EVOLUTION_API_URL}/message/sendMedia/${instanceName}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': accessToken },
-        body: JSON.stringify(evolutionPayload),
-        signal: AbortSignal.timeout(10000),
-      }
-    );
-
-    const responseText = await evolutionResponse.text();
-    let evolutionData: any;
-    try {
-      evolutionData = JSON.parse(responseText);
-    } catch {
-      console.error(`Evolution API returned non-JSON (status ${evolutionResponse.status}) for ${instanceName}:`, responseText.substring(0, 500));
-      return NextResponse.json({
-        error: `Evolution API error (${evolutionResponse.status}). The instance may not support this media type or the API is unreachable.`
-      }, { status: 502 });
-    }
-
-    const sendFailed = !evolutionResponse.ok || !evolutionData?.key?.id;
+    let evolutionResponse: Response | null = null;
+    let evolutionData: any = null;
+    let sendFailed = true;
     let errorMsg: string | null = null;
 
-    if (!evolutionResponse.ok) {
+    // Retry sending media up to 3 times
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        evolutionResponse = await fetch(
+          `${EVOLUTION_API_URL}/message/sendMedia/${instanceName}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': accessToken },
+            body: JSON.stringify(evolutionPayload),
+            signal: AbortSignal.timeout(10000),
+          }
+        );
+
+        const responseText = await evolutionResponse.text();
+        try {
+          evolutionData = JSON.parse(responseText);
+        } catch {
+          evolutionData = { error: responseText || 'Unknown response format' };
+        }
+
+        if (evolutionResponse.ok && evolutionData && !evolutionData.error && evolutionData.status !== 'ERROR' && evolutionData.key?.id) {
+          sendFailed = false;
+          break;
+        }
+
+        errorMsg = evolutionData?.message || evolutionData?.error || 'Failed to send media via Evolution API.';
+        console.warn(`[Media Send] Attempt ${attempt} failed for ${instanceName}: ${errorMsg}`);
+      } catch (err: any) {
+        errorMsg = err.message || 'Network timeout or connection error';
+        console.warn(`[Media Send] Attempt ${attempt} error for ${instanceName}: ${errorMsg}`);
+      }
+
+      if (attempt < 3) {
+        // Exponential backoff
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
+
+    if (sendFailed) {
       console.error(`Evolution API Error (sendMedia) for ${instanceName}:`, evolutionData);
-      errorMsg = evolutionData?.message || evolutionData?.error || 'Evolution API Error';
-    } else if (!evolutionData?.key?.id) {
-      console.error("Evolution returned 200 OK, but without ID:", evolutionData);
-      errorMsg = evolutionData?.message ? `WhatsApp API Error: ${evolutionData.message}` : 'Unexpected Error: API did not return message ID.';
     }
 
     const isGroupChat = recipientJid.endsWith('@g.us');
@@ -244,8 +244,8 @@ export async function POST(request: NextRequest) {
          finalChatId = (newChat as { id: number }).id;
       }
 
-      const messageId = sendFailed ? `error_${Date.now()}` : evolutionData.key.id;
-      const mediaMsg = sendFailed ? null : evolutionData.message?.[msgType!];
+      const messageId = (sendFailed || !evolutionData?.key?.id) ? `error_${Date.now()}` : evolutionData.key.id;
+      const mediaMsg = (sendFailed || !evolutionData?.message) ? null : evolutionData.message?.[msgType!];
       const finalMediaUrl = publicMediaUrl || mediaMsg?.url || null;
 
       const dbQuotedMessageId = quotedMessageData?.id || null;
@@ -262,10 +262,10 @@ export async function POST(request: NextRequest) {
         errorMessage: errorMsg,
         mediaUrl: finalMediaUrl,
         mediaMimetype: mimeType,
-        mediaCaption: sendFailed ? null : (mediaMsg?.caption || null),
-        mediaFileLength: sendFailed ? null : (mediaMsg?.fileLength?.toString() || null),
-        mediaSeconds: sendFailed ? null : (mediaType === 'video' ? mediaMsg?.seconds : null),
-        mediaIsPtt: null,
+        mediaCaption: (sendFailed || !mediaMsg) ? null : (mediaMsg?.caption || null),
+        mediaFileLength: (sendFailed || !mediaMsg) ? null : (mediaMsg?.fileLength?.toString() || null),
+        mediaSeconds: (sendFailed || !mediaMsg) ? null : (mediaType === 'video' || mediaType === 'audio' ? mediaMsg?.seconds : null),
+        mediaIsPtt: mediaType === 'audio' ? true : null,
         contactName: null,
         contactVcard: null,
         locationLatitude: null,
@@ -280,6 +280,8 @@ export async function POST(request: NextRequest) {
       const [insertedMessage] = await tx.insert(messages).values(newMessageData as any).onConflictDoNothing().returning();
       savedMessage = insertedMessage || newMessageData;
     });
+
+    await cacheInvalidateTeam(team.id);
 
     return NextResponse.json(formatMessageForFrontend(savedMessage));
 

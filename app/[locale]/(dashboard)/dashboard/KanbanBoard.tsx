@@ -315,7 +315,7 @@ export default function KanbanBoard() {
 
                             {stages.map((stage, index) => (
                                 <Draggable key={stage.id} draggableId={stage.id.toString()} index={index}>
-                                    {(provided) => (
+                                    {(provided: any) => (
                                         <div ref={provided.innerRef} {...provided.draggableProps} className="flex flex-col w-80 bg-muted/50 dark:bg-muted/20 rounded-xl border h-full max-h-full">
                                             <div {...provided.dragHandleProps} className="p-3 border-b bg-card/50 dark:bg-card/80 rounded-t-xl flex justify-between items-center sticky top-0 backdrop-blur-sm group cursor-grab active:cursor-grabbing">
                                                 <div className="flex items-center gap-2">
@@ -402,7 +402,7 @@ function CardItem({ card, index, toggleAlert, t }: { card: ChatCard, index: numb
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
                     className={`bg-card p-3 rounded-lg border shadow-sm group hover:shadow-md transition-all relative flex flex-col gap-2 ${snapshot.isDragging ? 'rotate-2 shadow-lg ring-2 ring-primary/20' : ''}`}
-                    style={provided.draggableProps.style}
+                    style={provided.draggableProps.style as React.CSSProperties}
                 >
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
